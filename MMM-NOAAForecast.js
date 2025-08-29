@@ -300,25 +300,16 @@ Module.register("MMM-NOAAForecast", {
     return undefined;
   },
 
-  convertTemperatureIfNeeded: function (value, celsius) {
-    if (celsius && this.config.units === "metric") {
-      return value;
-    }
-
-    if (!celsius && this.config.units === "imperial") {
-      return value;
-    }
-    if (celsius) {
-      // Read integer from string and convert Fahrenheit to Celsius
+  convertTemperature: function (value, toCelsius) {
+    if (toCelsius) {
       var fahrenheit = parseInt(String(value), 10);
       if (isNaN(fahrenheit)) return value;
       return Math.round((fahrenheit - 32) * (5 / 9));
-    } else {
-      // Read integer from string and convert Celsius to Fahrenheit
-      var v = parseInt(String(value), 10);
-      if (isNaN(v)) return value;
-      return Math.round(v * (9 / 5) + 32);
     }
+
+    var celsius = parseInt(String(value), 10);
+    if (isNaN(celsius)) return value;
+    return Math.round(celsius * (9 / 5) + 32);
   },
 
   // Generic helper to get a grid value for a daily entry (with 24h fallback).
@@ -348,6 +339,18 @@ Module.register("MMM-NOAAForecast", {
       );
     }
 
+    if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:degC" &&
+      this.config.units === "imperial"
+    ) {
+      val = this.convertTemperature(val, false);
+    } else if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:degF" &&
+      this.config.units === "metric"
+    ) {
+      val = this.convertTemperature(val, true);
+    }
+
     return val;
   },
 
@@ -362,24 +365,14 @@ Module.register("MMM-NOAAForecast", {
       for (var i = 0; i < this.weatherData.daily.length; i++) {
         var entry = this.weatherData.daily[i];
         try {
-          var maxTemperature = this.getGridValue(
+          entry.maxTemperature = this.getGridValue(
             this.weatherData.daily[i].startTime,
             "maxTemperature"
           );
 
-          var minTemperature = this.getGridValue(
+          entry.minTemperature = this.getGridValue(
             this.weatherData.daily[i].startTime,
             "minTemperature"
-          );
-
-          entry.maxTemperature = this.convertTemperatureIfNeeded(
-            maxTemperature,
-            this.weatherData.grid.maxTemperature.uom === "wmoUnit::degC"
-          );
-
-          entry.minTemperature = this.convertTemperatureIfNeeded(
-            minTemperature,
-            this.weatherData.grid.minTemperature.uom === "wmoUnit::degC"
           );
         } catch (e) {
           // ignore errors
