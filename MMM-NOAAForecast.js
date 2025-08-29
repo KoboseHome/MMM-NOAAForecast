@@ -329,7 +329,7 @@ Module.register("MMM-NOAAForecast", {
     return (Math.round(inches * 100) / 100).toString();
   },
 
-  convertImperialToMetric: function(val) {
+  convertImperialToMetric: function (val) {
     if (val === null || typeof val === "undefined") {
       return val;
     }
@@ -402,34 +402,39 @@ Module.register("MMM-NOAAForecast", {
     We need to pre-process the dailies and hourly to augment the data there based on grid data.
     */
   preProcessWeatherData: function () {
-    // For daily, we need to augment min, max temperatures, rain, snow accumulation and gust data.
-    // Example usage within this method (replace `someArray` and `ts` as needed):
-
     if (Array.isArray(this.weatherData.daily)) {
+      // For daily, we need to augment min, max temperatures, rain, snow accumulation and gust data.
       for (var i = 0; i < this.weatherData.daily.length; i++) {
-        var entry = this.weatherData.daily[i];
-        try {
-          entry.maxTemperature = this.getGridValue(
-            this.weatherData.daily[i].startTime,
-            "maxTemperature"
-          );
+        var daily = this.weatherData.daily[i];
+        daily.maxTemperature = this.getGridValue(
+          this.weatherData.daily[i].startTime,
+          "maxTemperature"
+        );
 
-          entry.minTemperature = this.getGridValue(
-            this.weatherData.daily[i].startTime,
-            "minTemperature"
-          );
+        daily.minTemperature = this.getGridValue(
+          this.weatherData.daily[i].startTime,
+          "minTemperature"
+        );
 
-          entry.snowAccumulation = this.getGridValue(
-            this.weatherData.daily[i].startTime,
-            "iceAccumulation"
-          );
-        } catch (e) {
-          // ignore errors
-        }
+        daily.snowAccumulation = this.getGridValue(
+          this.weatherData.daily[i].startTime,
+          "iceAccumulation"
+        );
+
+        // TODO(MEM): Implement windGust
+      }
+
+      // For hourly, we need to augment rain, snow accumulation and gust data.
+      for (var j = 0; j < this.weatherData.hourly.length; j++) {
+        var hourly = this.weatherData.hourly[j];
+        hourly.snowAccumulation = this.getGridValue(
+          this.weatherData.hourly[j].startTime,
+          "snowAccumulation"
+        );
+
+        // TODO(MEM): Implement windGust
       }
     }
-
-    // For hourly, we need to augment rain, snow accumulation and gust data.
   },
 
   /*
