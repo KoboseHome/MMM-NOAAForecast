@@ -321,6 +321,36 @@ Module.register("MMM-NOAAForecast", {
     }
   },
 
+  // Generic helper to get a grid value for a daily entry (with 24h fallback).
+  // This is awful - NOAA will provide gaps in their grid data,
+  // so if we can't find the time slot, consider it a 24h and run with it. Lame.
+  getGridValue: function (startTime, gridKey) {
+    if (
+      !this.weatherData ||
+      !this.weatherData.grid ||
+      !this.weatherData.grid[gridKey] ||
+      !Array.isArray(this.weatherData.grid[gridKey].values)
+    ) {
+      return undefined;
+    }
+
+    var val = this.findValueForTimestamp(
+      startTime,
+      this.weatherData.grid[gridKey].values,
+      false
+    );
+
+    if (typeof val === "undefined" || val === null) {
+      val = this.findValueForTimestamp(
+        startTime,
+        this.weatherData.grid[gridKey].values,
+        true
+      );
+    }
+
+    return val;
+  },
+
   /*
     We need to pre-process the dailies and hourly to augment the data there based on grid data.
     */
@@ -332,42 +362,15 @@ Module.register("MMM-NOAAForecast", {
       for (var i = 0; i < this.weatherData.daily.length; i++) {
         var entry = this.weatherData.daily[i];
         try {
-          var maxTemperature = this.findValueForTimestamp(
+          var maxTemperature = this.getGridValue(
             this.weatherData.daily[i].startTime,
-            this.weatherData.grid.maxTemperature.values,
-            false
+            "maxTemperature"
           );
 
-          // This is awful - NOAA will provide gaps in their grid data,
-          // so if we can't find the time slot, consider it a 24h and run with it. Lame.
-          if (
-            typeof maxTemperature === "undefined" ||
-            maxTemperature === null
-          ) {
-            maxTemperature = this.findValueForTimestamp(
-              this.weatherData.daily[i].startTime,
-              this.weatherData.grid.maxTemperature.values,
-              true
-            );
-          }
-
-          // This is awful - NOAA will provide gaps in their grid data,
-          // so if we can't find the time slot, consider it a 24h and run with it. Lame.
-          var minTemperature = this.findValueForTimestamp(
+          var minTemperature = this.getGridValue(
             this.weatherData.daily[i].startTime,
-            this.weatherData.grid.minTemperature.values
+            "minTemperature"
           );
-
-          if (
-            typeof minTemperature === "undefined" ||
-            minTemperature === null
-          ) {
-            minTemperature = this.findValueForTimestamp(
-              this.weatherData.daily[i].startTime,
-              this.weatherData.grid.minTemperature.values,
-              true
-            );
-          }
 
           entry.maxTemperature = this.convertTemperatureIfNeeded(
             maxTemperature,
