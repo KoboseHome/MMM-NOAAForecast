@@ -312,6 +312,40 @@ Module.register("MMM-NOAAForecast", {
     return Math.round(celsius * (9 / 5) + 32);
   },
 
+  convertMetricToImperial: function (val) {
+    if (val === null || typeof val === "undefined") {
+      return val;
+    }
+
+    var mm = parseFloat(String(val));
+    if (isNaN(mm)) {
+      return val;
+    }
+
+    // 1 inch = 25.4 mm
+    var inches = mm / 25.4;
+
+    // Round to two decimal places and return as string
+    return (Math.round(inches * 100) / 100).toString();
+  },
+
+  convertImperialToMetric: function(val) {
+    if (val === null || typeof val === "undefined") {
+      return val;
+    }
+
+    var inches = parseFloat(String(val));
+    if (isNaN(inches)) {
+      return val;
+    }
+
+    // 1 inch = 25.4 mm
+    var mm = inches * 25.4;
+
+    // Round to two decimal places and return as string
+    return (Math.round(mm * 100) / 100).toString();
+  },
+
   // Generic helper to get a grid value for a daily entry (with 24h fallback).
   // This is awful - NOAA will provide gaps in their grid data,
   // so if we can't find the time slot, consider it a 24h and run with it. Lame.
@@ -349,6 +383,16 @@ Module.register("MMM-NOAAForecast", {
       this.config.units === "metric"
     ) {
       val = this.convertTemperature(val, true);
+    } else if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:in" &&
+      this.config.units === "metric"
+    ) {
+      val = this.convertImperialToMetric(val);
+    } else if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:mm" &&
+      this.config.units === "imperial"
+    ) {
+      val = this.convertMetricToImperial(val);
     }
 
     return val;
@@ -373,6 +417,11 @@ Module.register("MMM-NOAAForecast", {
           entry.minTemperature = this.getGridValue(
             this.weatherData.daily[i].startTime,
             "minTemperature"
+          );
+
+          entry.snowAccumulation = this.getGridValue(
+            this.weatherData.daily[i].startTime,
+            "iceAccumulation"
           );
         } catch (e) {
           // ignore errors
