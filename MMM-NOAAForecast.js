@@ -255,56 +255,6 @@ Module.register("MMM-NOAAForecast", {
     }
   },
 
-  // Helper: parse ISO 8601 duration (e.g. "PT1H30M", "P1DT2H") to milliseconds
-  parseISODurationToMs: function (duration) {
-    if (!duration || duration[0] !== "P") return 0;
-    // Regex captures: Y, M (months), D, H, M (minutes), S
-    var re =
-      /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/i;
-    var m = duration.match(re);
-    if (!m) return 0;
-    var years = parseFloat(m[1] || 0);
-    var months = parseFloat(m[2] || 0);
-    var days = parseFloat(m[3] || 0);
-    var hours = parseFloat(m[4] || 0);
-    var minutes = parseFloat(m[5] || 0);
-    var seconds = parseFloat(m[6] || 0);
-
-    // Approximate months and years in days
-    var ms =
-      seconds * 1000 +
-      minutes * 60 * 1000 +
-      hours * 60 * 60 * 1000 +
-      days * 24 * 60 * 60 * 1000 +
-      months * 30 * 24 * 60 * 60 * 1000 +
-      years * 365 * 24 * 60 * 60 * 1000;
-    return ms;
-  },
-
-  // Returns true if targetDate falls in [start, end)
-  validTimeContains: function (validTimeStr, targetDate) {
-    if (!validTimeStr) return false;
-    var parts = validTimeStr.split("/");
-    if (parts.length === 1) {
-      // single instant
-      var start = Date.parse(parts[0]);
-      return !isNaN(start) && targetDate.getTime() === start;
-    }
-    var startMs = Date.parse(parts[0]);
-    if (isNaN(startMs)) return false;
-
-    var endPart = parts[1];
-    var endMs;
-    if (endPart[0] === "P") {
-      endMs = startMs + this.parseISODurationToMs(endPart);
-    } else {
-      endMs = Date.parse(endPart);
-    }
-    if (isNaN(endMs)) return false;
-
-    return targetDate.getTime() >= startMs && targetDate.getTime() < endMs;
-  },
-
   // Iterates array of objects with { validTime: "...", value: ... }
   // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
   findValueForTimestamp: function (targetTimestamp, arr, considerIntervals24h) {
@@ -346,11 +296,6 @@ Module.register("MMM-NOAAForecast", {
       } catch (e) {
         // ignore parse errors and fall back to existing handling below
       }
-
-      // TODO(MEM): Remove
-      //if (this.validTimeContains(entry.validTime, target)) {
-      //  return entry.value;
-      //}
     }
     return undefined;
   },
