@@ -219,7 +219,7 @@ Module.register("MMM-NOAAForecast", {
         grid: JSON.parse(payload.payload.forecastGridData).properties
       };
 
-      this.preprocessWeatherData();
+      this.preProcessWeatherData();
 
       this.formattedWeatherData = this.processWeatherData();
 
@@ -255,11 +255,190 @@ Module.register("MMM-NOAAForecast", {
     }
   },
 
+  // Helper: parse ISO 8601 duration (e.g. "PT1H30M", "P1DT2H") to milliseconds
+  parseISODurationToMs: function (duration) {
+    if (!duration || duration[0] !== "P") return 0;
+    // Regex captures: Y, M (months), D, H, M (minutes), S
+    var re =
+      /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/i;
+    var m = duration.match(re);
+    if (!m) return 0;
+    var years = parseFloat(m[1] || 0);
+    var months = parseFloat(m[2] || 0);
+    var days = parseFloat(m[3] || 0);
+    var hours = parseFloat(m[4] || 0);
+    var minutes = parseFloat(m[5] || 0);
+    var seconds = parseFloat(m[6] || 0);
+
+    // Approximate months and years in days
+    var ms =
+      seconds * 1000 +
+      minutes * 60 * 1000 +
+      hours * 60 * 60 * 1000 +
+      days * 24 * 60 * 60 * 1000 +
+      months * 30 * 24 * 60 * 60 * 1000 +
+      years * 365 * 24 * 60 * 60 * 1000;
+    return ms;
+  },
+
+  // Returns true if targetDate falls in [start, end)
+  validTimeContains: function (validTimeStr, targetDate) {
+    if (!validTimeStr) return false;
+    var parts = validTimeStr.split("/");
+    if (parts.length === 1) {
+      // single instant
+      var start = Date.parse(parts[0]);
+      return !isNaN(start) && targetDate.getTime() === start;
+    }
+    var startMs = Date.parse(parts[0]);
+    if (isNaN(startMs)) return false;
+
+    var endPart = parts[1];
+    var endMs;
+    if (endPart[0] === "P") {
+      endMs = startMs + this.parseISODurationToMs(endPart);
+    } else {
+      endMs = Date.parse(endPart);
+    }
+    if (isNaN(endMs)) return false;
+
+    return targetDate.getTime() >= startMs && targetDate.getTime() < endMs;
+  },
+
+  // Iterates array of objects with { validTime: "...", value: ... }
+  // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
+  findValueForTimestamp: function (targetTimestamp, arr, considerIntervals24h) {
+    if (!targetTimestamp || !Array.isArray(arr)) return undefined;
+    var target = new Date(targetTimestamp);
+    if (isNaN(target.getTime())) return undefined;
+
+    for (var i = 0; i < arr.length; i++) {
+      var entry = arr[i];
+      if (!entry || !entry.validTime) continue;
+
+      try {
+        // Handle interval where the end is an ISO duration, e.g. "2025-08-29T10:00:00-04:00/PT3H"
+        var parts = entry.validTime.split("/");
+        if (
+          parts.length === 2 &&
+          parts[1] &&
+          parts[1].charAt(0).toUpperCase() === "P"
+        ) {
+          var startMoment = moment(parts[0]);
+          if (startMoment.isValid()) {
+            var dur = moment.duration(
+              considerIntervals24h ? "PT24H" : parts[1]
+            );
+            if (dur && dur.asMilliseconds() > 0) {
+              var endMoment = startMoment.clone().add(dur);
+              if (
+                moment(target).isSameOrAfter(startMoment) &&
+                moment(target).isBefore(endMoment)
+              ) {
+                return entry.value;
+              } else {
+                // not in this entry's duration, continue to next entry
+                continue;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore parse errors and fall back to existing handling below
+      }
+
+      // TODO(MEM): Remove
+      //if (this.validTimeContains(entry.validTime, target)) {
+      //  return entry.value;
+      //}
+    }
+    return undefined;
+  },
+
+  convertTemperatureIfNeeded: function (value, celsius) {
+    if (celsius && this.config.units === "metric") {
+      return value;
+    }
+
+    if (!celsius && this.config.units === "imperial") {
+      return value;
+    }
+    if (celsius) {
+      // Read integer from string and convert Fahrenheit to Celsius
+      var fahrenheit = parseInt(String(value), 10);
+      if (isNaN(fahrenheit)) return value;
+      return Math.round((fahrenheit - 32) * (5 / 9));
+    } else {
+      // Read integer from string and convert Celsius to Fahrenheit
+      var v = parseInt(String(value), 10);
+      if (isNaN(v)) return value;
+      return Math.round(v * (9 / 5) + 32);
+    }
+  },
+
   /*
     We need to pre-process the dailies and hourly to augment the data there based on grid data.
     */
   preProcessWeatherData: function () {
     // For daily, we need to augment min, max temperatures, rain, snow accumulation and gust data.
+    // Example usage within this method (replace `someArray` and `ts` as needed):
+
+    if (Array.isArray(this.weatherData.daily)) {
+      for (var i = 0; i < this.weatherData.daily.length; i++) {
+        var entry = this.weatherData.daily[i];
+        try {
+          var maxTemperature = this.findValueForTimestamp(
+            this.weatherData.daily[i].startTime,
+            this.weatherData.grid.maxTemperature.values,
+            false
+          );
+
+          // This is awful - NOAA will provide gaps in their grid data,
+          // so if we can't find the time slot, consider it a 24h and run with it. Lame.
+          if (
+            typeof maxTemperature === "undefined" ||
+            maxTemperature === null
+          ) {
+            maxTemperature = this.findValueForTimestamp(
+              this.weatherData.daily[i].startTime,
+              this.weatherData.grid.maxTemperature.values,
+              true
+            );
+          }
+
+          // This is awful - NOAA will provide gaps in their grid data,
+          // so if we can't find the time slot, consider it a 24h and run with it. Lame.
+          var minTemperature = this.findValueForTimestamp(
+            this.weatherData.daily[i].startTime,
+            this.weatherData.grid.minTemperature.values
+          );
+
+          if (
+            typeof minTemperature === "undefined" ||
+            minTemperature === null
+          ) {
+            minTemperature = this.findValueForTimestamp(
+              this.weatherData.daily[i].startTime,
+              this.weatherData.grid.minTemperature.values,
+              true
+            );
+          }
+
+          entry.maxTemperature = this.convertTemperatureIfNeeded(
+            maxTemperature,
+            this.weatherData.grid.maxTemperature.uom === "wmoUnit::degC"
+          );
+
+          entry.minTemperature = this.convertTemperatureIfNeeded(
+            minTemperature,
+            this.weatherData.grid.minTemperature.uom === "wmoUnit::degC"
+          );
+        } catch (e) {
+          // ignore errors
+        }
+      }
+    }
+
     // For hourly, we need to augment rain, snow accumulation and gust data.
   },
 
@@ -406,8 +585,8 @@ Module.register("MMM-NOAAForecast", {
     // --------- Temperature ---------
     //display High / Low temperatures
     fItem.tempRange = this.formatHiLowTemperature(
-      fData.temp.max,
-      fData.temp.min
+      fData.maxTemperature,
+      fData.minTemperature
     );
 
     // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
