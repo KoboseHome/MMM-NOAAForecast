@@ -53,8 +53,8 @@ module.exports = NodeHelper.create({
             ) {
               var forecastUrls = [
                 { key: "forecast", url: properties.forecast },
-                { key: "forecastHourly", url: properties.forecastHourly }
-                //{ key: 'forecastGridData', url: properties.forecastGridData }
+                { key: "forecastHourly", url: properties.forecastHourly },
+                { key: "forecastGridData", url: properties.forecastGridData }
               ];
 
               var completedRequests = 0;

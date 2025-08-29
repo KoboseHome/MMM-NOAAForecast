@@ -192,7 +192,6 @@ Module.register("MMM-NOAAForecast", {
 
   getData: function () {
     this.sendSocketNotification("NOAA_CALL_FORECAST_GET", {
-      apikey: this.config.apikey,
       latitude: this.config.latitude,
       longitude: this.config.longitude,
       units: this.config.units,
@@ -203,7 +202,6 @@ Module.register("MMM-NOAAForecast", {
   },
 
   socketNotificationReceived: function (notification, payload) {
-    Log.info("PROCESSING2");
     if (
       notification === "NOAA_CALL_FORECAST_DATA" &&
       payload.instanceId === this.identifier
@@ -213,11 +211,14 @@ Module.register("MMM-NOAAForecast", {
         this.clearIcons();
       }
 
-      Log.info("PROCESSING2");
-
       //process weather data
       this.dataRefreshTimeStamp = moment().format("x");
-      this.weatherData = JSON.parse(payload.payload.forecast);
+      this.weatherData = {
+        daily: JSON.parse(payload.payload.forecast).properties.periods,
+        hourly: JSON.parse(payload.payload.forecastHourly).properties.periods,
+        grid: JSON.parse(payload.payload.forecastGridData).properties
+      };
+
       this.formattedWeatherData = this.processWeatherData();
 
       this.updateDom(this.config.updateFadeSpeed);
@@ -260,21 +261,9 @@ Module.register("MMM-NOAAForecast", {
   processWeatherData: function () {
     var summary;
     if (this.config.concise) {
-      summary = this.weatherData.hourly
-        ? this.weatherData.hourly[0].weather[0].description
-        : this.weatherData.current.weather[0].description;
+      summary = this.weatherData.daily[0].shortForecast;
     } else {
-      summary =
-        `${this.weatherData.current.weather[0].description}.` +
-        ` ${
-          this.weatherData.hourly
-            ? `${this.weatherData.hourly[0].weather[0].description} `
-            : ""
-        }${
-          this.weatherData.daily
-            ? this.weatherData.daily[0].weather[0].description
-            : ""
-        }`;
+      summary = this.weatherData.daily[0].detailedForecast;
     }
 
     var hourlies = [];
@@ -324,15 +313,11 @@ Module.register("MMM-NOAAForecast", {
         animatedIconId: this.config.useAnimatedIcons
           ? this.getAnimatedIconId()
           : null,
-        animatedIconName: this.convertOpenWeatherIdToIcon(
-          this.weatherData.current.weather[0].id,
+        animatedIconName: this.convertNOAAtoIcon(
           this.weatherData.current.weather[0].icon
         ),
         iconPath: this.generateIconSrc(
-          this.convertOpenWeatherIdToIcon(
-            this.weatherData.current.weather[0].id,
-            this.weatherData.current.weather[0].icon
-          ),
+          this.convertNOAAtoIcon(this.weatherData.current.weather[0].icon),
           true
         ),
         tempRange: this.formatHiLowTemperature(
@@ -366,34 +351,26 @@ Module.register("MMM-NOAAForecast", {
     // --------- Date / Time Display ---------
     if (type === "daily") {
       //day name (e.g.: "MON")
-      fItem.day = this.config.label_days[moment(fData.dt * 1000).format("d")];
+      fItem.day = this.config.label_days[moment(fData.startTime).format("d")];
     } else {
       //hourly
 
       //time (e.g.: "5 PM")
-      fItem.time = moment(fData.dt * 1000).format(this.config.label_timeFormat);
+      fItem.time = moment(fData.startTime).format(this.config.label_timeFormat);
     }
 
     // --------- Icon ---------
     if (this.config.useAnimatedIcons && !this.config.animateMainIconOnly) {
       fItem.animatedIconId = this.getAnimatedIconId();
-      fItem.animatedIconName = this.convertOpenWeatherIdToIcon(
-        fData.weather[0].id,
-        fData.weather[0].icon
-      );
+      fItem.animatedIconName = this.convertNOAAtoIcon(fData.icon);
     }
-    fItem.iconPath = this.generateIconSrc(
-      this.convertOpenWeatherIdToIcon(
-        fData.weather[0].id,
-        fData.weather[0].icon
-      )
-    );
+    fItem.iconPath = this.generateIconSrc(this.convertNOAAtoIcon(fData.icon));
 
     // --------- Temperature ---------
 
     if (type === "hourly") {
       //just display projected temperature for that hour
-      fItem.temperature = `${Math.round(fData.temp)}°`;
+      fItem.temperature = `${Math.round(fData.temperature)}°`;
     } else {
       //display High / Low temperatures
       fItem.tempRange = this.formatHiLowTemperature(
@@ -402,19 +379,18 @@ Module.register("MMM-NOAAForecast", {
       );
     }
 
+    // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
     // --------- Precipitation ---------
     fItem.precipitation = this.formatPrecipitation(
-      fData.pop,
-      fData.rain,
-      fData.snow
+      fData.probabilityOfPrecipitation.value,
+      0,
+      0
+      // TODO(MEM): Fix. fData.rain,
+      // TODO(MEM): Fix fData.snow
     );
 
     // --------- Wind ---------
-    fItem.wind = this.formatWind(
-      fData.wind_speed,
-      fData.wind_deg,
-      fData.wind_gust
-    );
+    fItem.wind = this.formatWind(fData.windDirection, fData.windSpeed);
 
     return fItem;
   },
@@ -479,7 +455,7 @@ Module.register("MMM-NOAAForecast", {
     }
 
     if (percentChance) {
-      pop = `${Math.round(percentChance * 100)}%`;
+      pop = `${percentChance}%`;
     }
 
     return {
@@ -492,21 +468,8 @@ Module.register("MMM-NOAAForecast", {
   /*
       Returns a formatted data object for wind conditions
      */
-  formatWind: function (speed, bearing, gust) {
-    //wind gust
-    var windGust = null;
-    if (!this.config.concise && gust) {
-      windGust = ` (${this.config.label_maximum} ${Math.round(
-        gust
-      )} ${this.getUnit("windSpeed")})`;
-    }
-
-    return {
-      windSpeed: `${Math.round(speed)} ${this.getUnit("windSpeed")}${
-        !this.config.concise ? ` ${this.getOrdinal(bearing)}` : ""
-      }`,
-      windGust: windGust
-    };
+  formatWind: function (direction, speed) {
+    return ` ${speed} ${direction}`;
   },
 
   /*
@@ -599,53 +562,70 @@ Module.register("MMM-NOAAForecast", {
   },
 
   /*
-      This converts OpenWeatherMap icon id to icon names
-    */
-  convertOpenWeatherIdToIcon: function (id, openweather_icon) {
-    if (id >= 200 && id < 300) {
-      // Thunderstorm
-      return "thunderstorm";
-    } else if (id >= 300 && id < 400) {
-      // Drizzle
-      return "rain";
-    } else if (id === 511) {
-      // Rain - freezing rain
-      return "sleet";
-    } else if (id >= 500 && id < 600) {
-      // Rain
-      return "rain";
-    } else if (id >= 610 && id < 620) {
-      // Snow - sleet or with rain
-      return "sleet";
-    } else if (id >= 600 && id < 700) {
-      // Snow
-      return "snow";
-    } else if (id === 781) {
-      // Atmosphere - tornado
-      return "tornado";
-    } else if (id >= 700 && id < 800) {
-      // Atmosphere
-      return "fog";
-    } else if (id >= 800 && id < 810) {
-      var isDay = openweather_icon.slice(-1) === "d";
+      This converts NOAA icons to icon names
 
-      if (id === 800) {
-        // Clear
-        if (isDay) {
-          return "clear-day";
-        } else {
-          return "clear-night";
+      Reference: https://github.com/weather-gov/weather.gov/blob/main/docs/icons.md and https://api.weather.gov/icons.
+    */
+  convertNOAAtoIcon: function (icon) {
+    // If the icon string contains any of these NOAA short-codes, return the human-readable description.
+    var noaaDescriptions = {
+      skc: "clear",
+      few: "partly-cloudy",
+      sct: "partly-cloudy",
+      bkn: "cloudy",
+      ovc: "cloudy",
+      wind_skc: "clear",
+      wind_few: "partly-cloudy",
+      wind_sct: "partly-cloudy",
+      wind_bkn: "cloudy",
+      wind_ovc: "cloudy",
+      snow: "snow",
+      rain_snow: "snow",
+      rain_sleet: "sleet",
+      snow_sleet: "snow",
+      fzra: "Freezing rain",
+      rain_fzra: "rain",
+      snow_fzra: "snow",
+      sleet: "sleet",
+      rain: "rain",
+      rain_showers: "rain",
+      rain_showers_hi: "rain",
+      tsra: "thunderstorm",
+      tsra_sct: "thunderstorm",
+      tsra_hi: "thunderstorm",
+      tornado: "tornado",
+      hurricane: "tornado",
+      tropical_storm: "storm",
+      dust: "fog",
+      smoke: "fog",
+      haze: "fog",
+      hot: "clear",
+      cold: "clear",
+      blizzard: "snow",
+      fog: "fog"
+    };
+
+    if (typeof icon === "string") {
+      for (var key in noaaDescriptions) {
+        if (Object.prototype.hasOwnProperty.call(noaaDescriptions, key)) {
+          if (icon.indexOf(key) !== -1) {
+            if (noaaDescriptions[key] === "clear") {
+              if (icon.indexOf("night") !== -1) {
+                return "clear-night";
+              } else {
+                return "clear-day";
+              }
+            } else if (noaaDescriptions[key] === "partly-cloudy") {
+              if (icon.indexOf("night") !== -1) {
+                return "partly-cloudy-night";
+              } else {
+                return "partly-cloudy-day";
+              }
+            } else {
+              return noaaDescriptions[key];
+            }
+          }
         }
-      } else if (id === 801 || id === 802) {
-        // Clouds - few or scattered
-        if (isDay) {
-          return "partly-cloudy-day";
-        } else {
-          return "partly-cloudy-night";
-        }
-      } else if (id === 803 || id === 804) {
-        // Clouds - broken or overcast
-        return "cloudy";
       }
     }
   },
