@@ -219,6 +219,8 @@ Module.register("MMM-NOAAForecast", {
         grid: JSON.parse(payload.payload.forecastGridData).properties
       };
 
+      this.preprocessWeatherData();
+
       this.formattedWeatherData = this.processWeatherData();
 
       this.updateDom(this.config.updateFadeSpeed);
@@ -254,6 +256,14 @@ Module.register("MMM-NOAAForecast", {
   },
 
   /*
+    We need to pre-process the dailies and hourly to augment the data there based on grid data.
+    */
+  preProcessWeatherData: function () {
+    // For daily, we need to augment min, max temperatures, rain, snow accumulation and gust data.
+    // For hourly, we need to augment rain, snow accumulation and gust data.
+  },
+
+  /*
       This prepares the data to be used by the Nunjucks template.  The template does not do any logic other
       if statements to determine if a certain section should be displayed, and a simple loop to go through
       the houly / daily forecast items.
@@ -276,7 +286,7 @@ Module.register("MMM-NOAAForecast", {
         }
 
         hourlies.push(
-          this.forecastItemFactory(
+          this.forecastHourlyFactory(
             this.weatherData.hourly[currentIndex],
             "hourly"
           )
@@ -301,7 +311,7 @@ Module.register("MMM-NOAAForecast", {
         }
 
         dailies.push(
-          this.forecastItemFactory(this.weatherData.daily[i], "daily")
+          this.forecastDailyFactory(this.weatherData.daily[i], "daily")
         );
       }
     }
@@ -341,23 +351,12 @@ Module.register("MMM-NOAAForecast", {
     };
   },
 
-  /*
-      Hourly and Daily forecast items are very similar.  So one routine builds the data
-      objects for both.
-     */
-  forecastItemFactory: function (fData, type) {
+  forecastHourlyFactory: function (fData, type) {
     var fItem = new Object();
 
     // --------- Date / Time Display ---------
-    if (type === "daily") {
-      //day name (e.g.: "MON")
-      fItem.day = this.config.label_days[moment(fData.startTime).format("d")];
-    } else {
-      //hourly
-
-      //time (e.g.: "5 PM")
-      fItem.time = moment(fData.startTime).format(this.config.label_timeFormat);
-    }
+    //time (e.g.: "5 PM")
+    fItem.time = moment(fData.startTime).format(this.config.label_timeFormat);
 
     // --------- Icon ---------
     if (this.config.useAnimatedIcons && !this.config.animateMainIconOnly) {
@@ -367,17 +366,8 @@ Module.register("MMM-NOAAForecast", {
     fItem.iconPath = this.generateIconSrc(this.convertNOAAtoIcon(fData.icon));
 
     // --------- Temperature ---------
-
-    if (type === "hourly") {
-      //just display projected temperature for that hour
-      fItem.temperature = `${Math.round(fData.temperature)}°`;
-    } else {
-      //display High / Low temperatures
-      fItem.tempRange = this.formatHiLowTemperature(
-        fData.temp.max,
-        fData.temp.min
-      );
-    }
+    //just display projected temperature for that hour
+    fItem.temperature = `${Math.round(fData.temperature)}°`;
 
     // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
     // --------- Precipitation ---------
@@ -390,7 +380,52 @@ Module.register("MMM-NOAAForecast", {
     );
 
     // --------- Wind ---------
-    fItem.wind = this.formatWind(fData.windDirection, fData.windSpeed);
+    fItem.wind = this.formatWind(
+      fData.windSpeed,
+      fData.windDirection,
+      "0" // TODO(MEM));
+    );
+
+    return fItem;
+  },
+
+  forecastDailyFactory: function (fData, type) {
+    var fItem = new Object();
+
+    // --------- Date / Time Display ---------
+    //day name (e.g.: "MON")
+    fItem.day = this.config.label_days[moment(fData.startTime).format("d")];
+
+    // --------- Icon ---------
+    if (this.config.useAnimatedIcons && !this.config.animateMainIconOnly) {
+      fItem.animatedIconId = this.getAnimatedIconId();
+      fItem.animatedIconName = this.convertNOAAtoIcon(fData.icon);
+    }
+    fItem.iconPath = this.generateIconSrc(this.convertNOAAtoIcon(fData.icon));
+
+    // --------- Temperature ---------
+    //display High / Low temperatures
+    fItem.tempRange = this.formatHiLowTemperature(
+      fData.temp.max,
+      fData.temp.min
+    );
+
+    // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
+    // --------- Precipitation ---------
+    fItem.precipitation = this.formatPrecipitation(
+      fData.probabilityOfPrecipitation.value,
+      0,
+      0
+      // TODO(MEM): Fix. fData.rain,
+      // TODO(MEM): Fix fData.snow
+    );
+
+    // --------- Wind ---------
+    fItem.wind = this.formatWind(
+      fData.windDirection,
+      fData.windSpeed,
+      "0" // TODO(MEM)
+    );
 
     return fItem;
   },
@@ -468,8 +503,17 @@ Module.register("MMM-NOAAForecast", {
   /*
       Returns a formatted data object for wind conditions
      */
-  formatWind: function (direction, speed) {
-    return ` ${speed} ${direction}`;
+  formatWind: function (speed, bearing, gust) {
+    //wind gust
+    var windGust = null;
+    if (!this.config.concise && gust) {
+      windGust = ` (${this.config.label_maximum} ${gust})`;
+    }
+
+    return {
+      windSpeed: `${speed} ${!this.config.concise ? `${bearing}` : ""}`,
+      windGust: windGust
+    };
   },
 
   /*
