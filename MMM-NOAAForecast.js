@@ -602,13 +602,29 @@ Module.register("MMM-NOAAForecast", {
 
     var dailies = [];
     if (this.config.showDailyForecast) {
-      var i = 1;
-      var maxi = this.config.maxDailiesToShow;
-      if (this.config.includeTodayInDailyForecast) {
-        i = 0;
-        maxi = this.config.maxDailiesToShow - 1;
+
+      var firstDailyName = "";
+      if (
+        this.weatherData &&
+        Array.isArray(this.weatherData.daily) &&
+        this.weatherData.daily[0]
+      ) {
+        firstDailyName = String(this.weatherData.daily[0].name || "").trim();
       }
-      for (i; i <= maxi * 2; i += 2) {
+      var isFirstDailyToday =
+        firstDailyName.toLowerCase() === "today" ? true : false;
+
+      var i = isFirstDailyToday ? 2 : 1;
+      if (this.config.includeTodayInDailyForecast) {
+        i = isFirstDailyToday ? 0 : 1;
+      }
+
+      for (
+        i;
+        i <= 2 * this.config.maxDailiesToShow &&
+        i < this.weatherData.daily.length;
+        i += 2
+      ) {
         if (this.weatherData.daily[i] === null) {
           break;
         }
@@ -873,11 +889,6 @@ Module.register("MMM-NOAAForecast", {
   convertNOAAtoIcon: function (icon) {
     // If the icon string contains any of these NOAA short-codes, return the human-readable description.
     var noaaDescriptions = {
-      skc: "clear",
-      few: "partly-cloudy",
-      sct: "partly-cloudy",
-      bkn: "cloudy",
-      ovc: "cloudy",
       wind_skc: "clear",
       wind_few: "partly-cloudy",
       wind_sct: "partly-cloudy",
@@ -906,7 +917,12 @@ Module.register("MMM-NOAAForecast", {
       hot: "clear",
       cold: "clear",
       blizzard: "snow",
-      fog: "fog"
+      fog: "fog",
+      skc: "clear",
+      few: "partly-cloudy",
+      sct: "partly-cloudy",
+      bkn: "cloudy",
+      ovc: "cloudy"
     };
 
     if (typeof icon === "string") {
