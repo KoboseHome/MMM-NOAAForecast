@@ -140,7 +140,7 @@ Find out your latitude and longitude here:
     </tr>
     <tr>
       <td><code>label_gust/code></td>
-      <td>The label you wish to display for prefixing wind gusts.<br><br><strong>Type</strong> <code>String</code><br>Defaults to <code>"gust"</code>.</td>
+      <td>The label you wish to display for prefixing wind gusts.<br><br><strong>Type</strong> <code>String</code><br>Defaults to <code>"max"</code>.</td>
     </tr>
     <tr>
       <td><code>label_high</code></td>

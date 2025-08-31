@@ -41,7 +41,7 @@ Module.register("MMM-NOAAForecast", {
     forecastTiledIconSize: 70,
     forecastTableIconSize: 30,
     updateFadeSpeed: 500,
-    label_gust: "gust",
+    label_gust: "max",
     label_high: "H",
     label_low: "L",
     label_timeFormat: "h a",
@@ -255,12 +255,45 @@ Module.register("MMM-NOAAForecast", {
     }
   },
 
+  accumulateValueForTimestamp: function (targetTimestamp, arr) {
+    if (!targetTimestamp || !Array.isArray(arr)) return undefined;
+    var target = moment(targetTimestamp);
+    if (!target.isValid()) return undefined;
+
+    // accumulate values for entries whose start date equals the target date
+    var targetDayStart = target.clone().startOf("day");
+    var accumulation = 0;
+    var foundAny = false;
+
+    for (var i = 0; i < arr.length; i++) {
+      var entry = arr[i];
+      if (!entry || !entry.validTime) continue;
+
+      var parts = entry.validTime.split("/");
+      var startMoment = moment(parts[0]);
+      if (!startMoment.isValid()) continue;
+
+      // treat each matching start date as part of that day's 24h accumulation
+      if (startMoment.isSame(targetDayStart, "day")) {
+        var val = entry.value;
+        var num = parseFloat(String(val));
+        if (!isNaN(num)) {
+          accumulation += num;
+          foundAny = true;
+        }
+      }
+    }
+    return foundAny ? accumulation : undefined;
+  },
+
   // Iterates array of objects with { validTime: "...", value: ... }
   // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
-  findValueForTimestamp: function (targetTimestamp, arr, snapTo24h) {
+  findValueForTimestamp: function (targetTimestamp, arr) {
     if (!targetTimestamp || !Array.isArray(arr)) return undefined;
     var target = new Date(targetTimestamp);
     if (isNaN(target.getTime())) return undefined;
+
+    var result = undefined;
 
     for (var i = 0; i < arr.length; i++) {
       var entry = arr[i];
@@ -276,7 +309,7 @@ Module.register("MMM-NOAAForecast", {
         ) {
           var startMoment = moment(parts[0]);
           if (startMoment.isValid()) {
-            var dur = moment.duration(snapTo24h ? "PT24H" : parts[1]);
+            var dur = moment.duration(parts[1]);
             if (dur && dur.asMilliseconds() > 0) {
               var endMoment = startMoment.clone().add(dur);
               if (
@@ -345,10 +378,8 @@ Module.register("MMM-NOAAForecast", {
     return Math.round(final).toString();
   },
 
-  // Generic helper to get a grid value for a daily entry (with 24h fallback).
-  // This is awful - NOAA will provide gaps in their grid data,
-  // so if we can't find the time slot, consider it a 24h and run with it. Lame.
-  getGridValue: function (startTime, gridKey, snapToDaily) {
+  // Generic helper to get a grid value for a daily entry, with possible accumulation for 24h.
+  getGridValue: function (startTime, gridKey, dailyAccumulation) {
     if (
       !this.weatherData ||
       !this.weatherData.grid ||
@@ -358,11 +389,15 @@ Module.register("MMM-NOAAForecast", {
       return undefined;
     }
 
-    var val = this.findValueForTimestamp(
-      startTime,
-      this.weatherData.grid[gridKey].values,
-      snapToDaily
-    );
+    var val = dailyAccumulation
+      ? this.accumulateValueForTimestamp(
+          startTime,
+          this.weatherData.grid[gridKey].values
+        )
+      : this.findValueForTimestamp(
+          startTime,
+          this.weatherData.grid[gridKey].values
+        );
 
     // TODO(MEM): Fix decimal points
 
