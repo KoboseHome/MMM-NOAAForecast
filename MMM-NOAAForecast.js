@@ -525,6 +525,35 @@ Module.register("MMM-NOAAForecast", {
           true
         );
       }
+    }
+
+    if (Array.isArray(this.weatherData.hourly)) {
+      // Trim hourly array so it begins at the start of the current hour
+      var hourStart = moment().startOf("hour");
+      var startIndex = null;
+      for (var k = 0; k < this.weatherData.hourly.length; k++) {
+        var entry = this.weatherData.hourly[k];
+        if (!entry || !entry.startTime) continue;
+        var startMoment = moment(entry.startTime);
+        if (!startMoment.isValid()) continue;
+
+        // Prefer an entry that exactly matches the current hour; otherwise take the first entry after the hour start
+        if (
+          startMoment.isSame(hourStart, "hour") ||
+          startMoment.isAfter(hourStart)
+        ) {
+          startIndex = k;
+          break;
+        }
+      }
+
+      // If we found a later entry, trim the array so it begins at that index
+      if (startIndex !== null && startIndex > 0) {
+        this.weatherData.hourly = this.weatherData.hourly.slice(startIndex);
+      }
+
+      // IMPORTANT: From this point on, we dropped hourly data. So whatever
+      // totals had to be calculated for dailies, they should've happened before.
 
       // For hourly, we need to augment rain, snow accumulation and gust data.
       for (var j = 0; j < this.weatherData.hourly.length; j++) {
