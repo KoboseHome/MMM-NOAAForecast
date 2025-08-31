@@ -770,8 +770,11 @@ Module.register("MMM-NOAAForecast", {
   formatWind: function (speed, bearing, gust) {
     //wind gust
     var windGust = null;
+
+    var gustLabel = this.config.units === "imperial" ? "mph" : "km/h";
+
     if (!this.config.concise && gust) {
-      windGust = ` (${this.config.label_gust} ${gust})`;
+      windGust = ` (${this.config.label_gust} ${gust} ${gustLabel})`;
     }
 
     return {
