@@ -53,16 +53,8 @@ Find out your latitude and longitude here:
       <td>How quickly in milliseconds to fade the module out and in upon data refresh.  Set this to <code>0</code> for no fade.<br><br><strong>Type</strong> <code>Number</code><br>Defaults to <code>500</code> (i.e.: 1/2 second).</td>
     </tr>
     <tr>
-      <td><code>language</code></td>
-      <td>The language to be used for display.<br><br><strong>Type</strong> <code>String</code><br>Defaults to the language set for Magic Mirror, but can be overridden with any of the language codes listed here: https://openweathermap.org/api/one-call-api#multi.</td>
-    </tr>
-    <tr>
       <td><code>colored</code></td>
       <td>Whether to present module in colour or black-and-white.  Note, if set to <code>false</code>, the monochramtic version of your chosen icon set will be forced if it exist.<br><br><strong>Type</strong> <code>Boolean</code><br>Defaults to <code>true</code></td>
-    </tr>
-    <tr>
-      <td><code>units</code></td>
-      <td>One of the following: <code>imperial</code>, <code>metric</code>, or <code>[blank]</code>.<br><br><strong>Type</strong> <code>String</code><br>Defaults to units set for Magic Mirror.<br />See https://openweathermap.org/api/one-call-api#data for details on units.</td>
     </tr>
     <tr>
       <td><code>showCurrentConditions</code></td>
@@ -209,10 +201,6 @@ This module is set to be 300px wide by default.  If you wish to override it, you
 ```
 
 Most important elements of this module have one or more class names applied. Examine the `MMM-NOAAForecast.css` or inspect elements directly with your browser of choice to determine what class you would like to override.
-
-## For Module Developers
-
-This module broadcasts a notification when it receives a weather update.  The notification is `NOA__CALL_FORECAST_DATA` and the payload contains OpenWeatherMap's JSON weather forecast object.  For details on the weather object, see https://openweathermap.org/api/one-call-api.
 
 ## Attributions
 

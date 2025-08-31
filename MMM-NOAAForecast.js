@@ -13,7 +13,6 @@ Module.register("MMM-NOAAForecast", {
     longitude: "",
     updateInterval: 10, // minutes
     requestDelay: 0,
-    units: config.units,
     showCurrentConditions: true,
     showExtraCurrentConditions: true,
     showSummary: true,
@@ -29,7 +28,6 @@ Module.register("MMM-NOAAForecast", {
     concise: true,
     showWind: true,
     showFeelsLike: true,
-    language: config.language,
     iconset: "1c",
     mainIconset: "1c",
     useAnimatedIcons: true,
@@ -67,7 +65,6 @@ Module.register("MMM-NOAAForecast", {
     moduleTimestampIdPrefix: "NOAA_CALL_TIMESTAMP_"
   },
 
-  validUnits: ["imperial", "metric", ""],
   validLayouts: ["tiled", "table"],
 
   getScripts: function () {
@@ -149,9 +146,6 @@ Module.register("MMM-NOAAForecast", {
     }
 
     //sanitize optional parameters
-    if (this.validUnits.indexOf(this.config.units) === -1) {
-      this.config.units = "imperial";
-    }
     if (this.validLayouts.indexOf(this.config.forecastLayout) === -1) {
       this.config.forecastLayout = "tiled";
     }
@@ -194,8 +188,6 @@ Module.register("MMM-NOAAForecast", {
     this.sendSocketNotification("NOAA_CALL_FORECAST_GET", {
       latitude: this.config.latitude,
       longitude: this.config.longitude,
-      units: this.config.units,
-      language: this.config.language,
       instanceId: this.identifier,
       requestDelay: this.config.requestDelay
     });
@@ -803,21 +795,6 @@ Module.register("MMM-NOAAForecast", {
   },
 
   /*
-      Returns the units in use for the data pull from OpenWeather
-     */
-  getUnit: function (metric) {
-    return this.units[metric][this.config.units];
-  },
-
-  /*
-      Formats the wind direction into common ordinals (e.g.: NE, WSW, etc.)
-      Wind direction is provided in degress from North in the data feed.
-     */
-  getOrdinal: function (bearing) {
-    return this.config.label_ordinals[Math.round((bearing * 16) / 360) % 16];
-  },
-
-  /*
       Some display items need the unit beside them.  This returns the correct
       unit for the given metric based on the unit set in use.
      */
@@ -846,7 +823,7 @@ Module.register("MMM-NOAAForecast", {
       that works for you.
 
       OpenWeatherMap currently specifies one of ten icons for weather
-      conditions:
+      conditions (from which this module was originally based):
 
         clear-day
         clear-night
