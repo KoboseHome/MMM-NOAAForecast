@@ -24,6 +24,14 @@ module.exports = NodeHelper.create({
   socketNotificationReceived: function (notification, payload) {
     if (notification === "NOAA_CALL_FORECAST_GET") {
       var self = this;
+      // use a browser-like User-Agent for requests
+      var needleOptions = {
+        follow_max: 3,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          Accept: "application/geo+json"
+        }
+      };
 
       if (
         payload.latitude === null ||
@@ -40,7 +48,7 @@ module.exports = NodeHelper.create({
         var url = `https://api.weather.gov/points/${payload.latitude},${payload.longitude}`;
 
         console.log(`[MMM-NOAAForecast] Getting data: ${url}`);
-        needle.get(url, { follow_max: 3 }, function (error, response, body) {
+        needle.get(url, needleOptions, function (error, response, body) {
           if (!error && response.statusCode === 200) {
             var forecastData = {};
             var parsedBody = typeof body === "string" ? JSON.parse(body) : body;
@@ -60,35 +68,34 @@ module.exports = NodeHelper.create({
               var completedRequests = 0;
 
               forecastUrls.forEach(function (item) {
-                needle.get(
-                  item.url,
-                  { follow_max: 3 },
-                  function (err, res, data) {
-                    if (!err && res.statusCode === 200) {
-                      forecastData[item.key] = data;
-                    } else {
-                      console.log(
-                        `[MMM-NOAAForecast] ${moment().format(
-                          "D-MMM-YY HH:mm"
-                        )} ** ERROR ** Failed to get ${item.key}: ${err}`
-                      );
-                    }
-
-                    completedRequests++;
-                    if (completedRequests === forecastUrls.length) {
-                      self.sendSocketNotification("NOAA_CALL_FORECAST_DATA", {
-                        instanceId: payload.instanceId,
-                        payload: forecastData
-                      });
-                    }
+                needle.get(item.url, needleOptions, function (err, res, data) {
+                  if (!err && res.statusCode === 200) {
+                    forecastData[item.key] = data;
+                    console.log(`[MMM-NOAAForecast] Getting data: ${item.url}`);
+                  } else {
+                    console.log(
+                      `[MMM-NOAAForecast] ${moment().format(
+                        "D-MMM-YY HH:mm"
+                      )} ** ERROR ** Failed to get ${item.key}: ${err}`
+                    );
                   }
-                );
+
+                  completedRequests++;
+                  if (completedRequests === forecastUrls.length) {
+                    self.sendSocketNotification("NOAA_CALL_FORECAST_DATA", {
+                      instanceId: payload.instanceId,
+                      payload: forecastData
+                    });
+                  }
+                });
               });
             } else {
               console.log(
                 `[MMM-NOAAForecast] ${moment().format(
                   "D-MMM-YY HH:mm"
-                )} ** ERROR ** Missing forecast URLs in response`
+                )} ** ERROR ** Missing forecast URLs in response: ${
+                  error ? error : JSON.stringify(parsedBody)
+                }`
               );
             }
           } else {
