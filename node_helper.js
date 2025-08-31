@@ -26,11 +26,7 @@ module.exports = NodeHelper.create({
       var self = this;
       // use a browser-like User-Agent for requests
       var needleOptions = {
-        follow_max: 3,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-          "Accept": "application/geo+json"
-        }
+        follow_max: 3
       };
 
       if (
