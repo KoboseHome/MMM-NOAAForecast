@@ -509,12 +509,16 @@ Module.register("MMM-NOAAForecast", {
           true
         );
 
+        // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
+        // this may come out undefined even though it does provide a % chance of rain.
         daily.snowAccumulation = this.getGridValue(
           this.weatherData.daily[i].startTime,
           "iceAccumulation",
           true
         );
 
+        // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
+        // this may come out undefined even though it does provide a % chance of rain.
         daily.rainAccumulation = this.getGridValue(
           this.weatherData.daily[i].startTime,
           "quantitativePrecipitation",
@@ -525,12 +529,16 @@ Module.register("MMM-NOAAForecast", {
       // For hourly, we need to augment rain, snow accumulation and gust data.
       for (var j = 0; j < this.weatherData.hourly.length; j++) {
         var hourly = this.weatherData.hourly[j];
+        // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
+        // this may come out undefined even though it does provide a % chance of rain.
         hourly.snowAccumulation = this.getGridValue(
           this.weatherData.hourly[j].startTime,
           "iceAccumulation",
           false
         );
 
+        // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
+        // this may come out undefined even though it does provide a % chance of rain.
         hourly.rainAccumulation = this.getGridValue(
           this.weatherData.hourly[j].startTime,
           "quantitativePrecipitation",
