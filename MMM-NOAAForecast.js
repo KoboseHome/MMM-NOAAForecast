@@ -485,12 +485,6 @@ Module.register("MMM-NOAAForecast", {
           "windGust",
           true
         );
-
-        daily.feelsLike = this.calculateFeelsLike(
-          daily.temperature,
-          daily.windGust,
-          50 // TODO(MEM): humidityPercent
-        );
       }
 
       // For hourly, we need to augment rain, snow accumulation and gust data.
