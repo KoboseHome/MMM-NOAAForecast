@@ -479,12 +479,6 @@ Module.register("MMM-NOAAForecast", {
           "iceAccumulation",
           true
         );
-
-        daily.windGust = this.getGridValue(
-          this.weatherData.daily[i].startTime,
-          "windGust",
-          true
-        );
       }
 
       // For hourly, we need to augment rain, snow accumulation and gust data.
@@ -505,7 +499,7 @@ Module.register("MMM-NOAAForecast", {
         hourly.feelsLike = this.calculateFeelsLike(
           hourly.temperature,
           hourly.windGust,
-          50 // TODO(MEM): humidityPercent
+          hourly.relativeHumidity.value
         );
       }
     }
@@ -705,6 +699,8 @@ Module.register("MMM-NOAAForecast", {
     var accumulation = null;
     var accumulationtype = null;
     var pop = null;
+
+    // TODO(MEM): Fix
 
     //accumulation
     if (snowAccumulation) {
