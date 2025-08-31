@@ -514,6 +514,12 @@ Module.register("MMM-NOAAForecast", {
           "iceAccumulation",
           true
         );
+
+        daily.rainAccumulation = this.getGridValue(
+          this.weatherData.daily[i].startTime,
+          "quantitativePrecipitation",
+          true
+        );
       }
 
       // For hourly, we need to augment rain, snow accumulation and gust data.
@@ -521,7 +527,13 @@ Module.register("MMM-NOAAForecast", {
         var hourly = this.weatherData.hourly[j];
         hourly.snowAccumulation = this.getGridValue(
           this.weatherData.hourly[j].startTime,
-          "snowAccumulation",
+          "iceAccumulation",
+          false
+        );
+
+        hourly.rainAccumulation = this.getGridValue(
+          this.weatherData.hourly[j].startTime,
+          "quantitativePrecipitation",
           false
         );
 
@@ -613,8 +625,8 @@ Module.register("MMM-NOAAForecast", {
         ),
         precipitation: this.formatPrecipitation(
           null,
-          0, // TODO(MEM): this.weatherData.current.rain,
-          0 // TODO(MEM): this.weatherData.current.snow
+          this.weatherData.hourly[0].rainAccumulation,
+          this.weatherData.hourly[0].snowAccumulation
         ),
         wind: this.formatWind(
           this.weatherData.hourly[0].windSpeed,
@@ -650,10 +662,8 @@ Module.register("MMM-NOAAForecast", {
     // --------- Precipitation ---------
     fItem.precipitation = this.formatPrecipitation(
       fData.probabilityOfPrecipitation.value,
-      0,
-      0
-      // TODO(MEM): Fix. fData.rain,
-      // TODO(MEM): Fix fData.snow
+      fData.rainAccumulation,
+      fData.snowAccumulation
     );
 
     // --------- Wind ---------
@@ -691,10 +701,8 @@ Module.register("MMM-NOAAForecast", {
     // --------- Precipitation ---------
     fItem.precipitation = this.formatPrecipitation(
       fData.probabilityOfPrecipitation.value,
-      0,
-      0
-      // TODO(MEM): Fix. fData.rain,
-      // TODO(MEM): Fix fData.snow
+      fData.rainAccumulation,
+      fData.snowAccumulation
     );
 
     // --------- Wind ---------
@@ -732,40 +740,17 @@ Module.register("MMM-NOAAForecast", {
     snowAccumulation
   ) {
     var accumulation = null;
-    var accumulationtype = null;
+    var accumulationType = null;
     var pop = null;
 
-    // TODO(MEM): Fix
+    var unit = this.config.units === "imperial" ? "in" : "mm";
 
-    //accumulation
-    if (snowAccumulation) {
-      accumulationtype = "snow";
-      if (typeof snowAccumulation === "number") {
-        accumulation = `${Math.round(snowAccumulation)} ${this.getUnit(
-          "accumulationSnow"
-        )}`;
-      } else if (
-        typeof snowAccumulation === "object" &&
-        snowAccumulation["1h"]
-      ) {
-        accumulation = `${Math.round(snowAccumulation["1h"])} ${this.getUnit(
-          "accumulationSnow"
-        )}`;
-      }
-    } else if (rainAccumulation) {
-      accumulationtype = "rain";
-      if (typeof rainAccumulation === "number") {
-        accumulation = `${Math.round(rainAccumulation)} ${this.getUnit(
-          "accumulationRain"
-        )}`;
-      } else if (
-        typeof rainAccumulation === "object" &&
-        rainAccumulation["1h"]
-      ) {
-        accumulation = `${Math.round(rainAccumulation["1h"])} ${this.getUnit(
-          "accumulationRain"
-        )}`;
-      }
+    if (snowAccumulation && parseFloat(snowAccumulation) > 0) {
+      accumulationType = "snow";
+      accumulation = `${Math.round(snowAccumulation)} ${unit}`;
+    } else if (rainAccumulation && parseFloat(rainAccumulation) > 0) {
+      accumulationType = "rain";
+      accumulation = `${Math.round(rainAccumulation)} ${unit}`;
     }
 
     if (percentChance) {
@@ -775,7 +760,7 @@ Module.register("MMM-NOAAForecast", {
     return {
       pop: pop,
       accumulation: accumulation,
-      accumulationtype: accumulationtype
+      accumulationType: accumulationType
     };
   },
 
@@ -816,12 +801,12 @@ Module.register("MMM-NOAAForecast", {
      */
   units: {
     accumulationRain: {
-      imperial: "mm",
+      imperial: "in",
       metric: "mm",
       "": "mm"
     },
     accumulationSnow: {
-      imperial: "mm",
+      imperial: "in",
       metric: "mm",
       "": "mm"
     },

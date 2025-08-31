@@ -37,10 +37,10 @@
           <span class="precipitation-container">
             {% if forecast.currently.precipitation.accumulation %}
               {% if (config.showInlineIcons) %}
-                {% if forecast.currently.precipitation.accumulationtype == "rain" %}
+                {% if forecast.currently.precipitation.accumulationType == "rain" %}
                   <img class="inline-icon rain" src="{{ inlineIcons.rain }}" />
                 {% endif %}
-                {% if forecast.currently.precipitation.accumulationtype == "snow" %}
+                {% if forecast.currently.precipitation.accumulationType == "snow" %}
                   <img class="inline-icon snow" src="{{ inlineIcons.snow }}" />
                 {% endif %}
               {% endif %}
@@ -128,10 +128,10 @@
                 <span class="precipitation-container">
                   {% if h.precipitation.accumulation %}
                     {% if (config.showInlineIcons) and config.forecastLayout == "tiled" %}
-                      {% if h.precipitation.accumulationtype == "rain" %}
+                      {% if h.precipitation.accumulationType == "rain" %}
                         <img class="inline-icon rain" src="{{ inlineIcons.rain }}" />
                       {% endif %}
-                      {% if h.precipitation.accumulationtype == "snow" %}
+                      {% if h.precipitation.accumulationType == "snow" %}
                         <img class="inline-icon snow" src="{{ inlineIcons.snow }}" />
                       {% endif %}
                     {% endif %}
@@ -192,10 +192,10 @@
                 <span class="precipitation-container">
                   {% if d.precipitation.accumulation %}
                     {% if (config.showInlineIcons) and config.forecastLayout == "tiled" %}
-                      {% if d.precipitation.accumulationtype == "rain" %}
+                      {% if d.precipitation.accumulationType == "rain" %}
                         <img class="inline-icon rain" src="{{ inlineIcons.rain }}" />
                       {% endif %}
-                      {% if d.precipitation.accumulationtype == "snow" %}
+                      {% if d.precipitation.accumulationType == "snow" %}
                         <img class="inline-icon snow" src="{{ inlineIcons.snow }}" />
                       {% endif %}
                     {% endif %}
