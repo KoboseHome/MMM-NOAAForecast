@@ -753,7 +753,7 @@ Module.register("MMM-NOAAForecast", {
   ) {
     var accumulation = null;
     var accumulationType = null;
-    var pop = null;
+    var pop = `${percentChance}%`;
 
     var unit = this.config.units === "imperial" ? "in" : "mm";
 
@@ -763,10 +763,6 @@ Module.register("MMM-NOAAForecast", {
     } else if (rainAccumulation && parseFloat(rainAccumulation) > 0) {
       accumulationType = "rain";
       accumulation = `${Math.round(rainAccumulation)} ${unit}`;
-    }
-
-    if (percentChance) {
-      pop = `${percentChance}%`;
     }
 
     return {
