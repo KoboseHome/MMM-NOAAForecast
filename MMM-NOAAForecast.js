@@ -332,15 +332,26 @@ Module.register("MMM-NOAAForecast", {
   },
 
   convertTemperature: function (value, toCelsius) {
-    if (toCelsius) {
-      var fahrenheit = parseInt(String(value), 10);
-      if (isNaN(fahrenheit)) return value;
-      return Math.round((fahrenheit - 32) * (5 / 9));
+    if (value === null || typeof value === "undefined") {
+      return value;
     }
 
-    var celsius = parseInt(String(value), 10);
-    if (isNaN(celsius)) return value;
-    return Math.round(celsius * (9 / 5) + 32);
+    var num = parseFloat(String(value));
+    if (isNaN(num)) return value;
+
+    if (toCelsius) {
+      // input is Fahrenheit -> convert to Celsius, up to 1 decimal place
+      var c = (num - 32) * (5 / 9);
+      var rounded = Math.round(c * 10) / 10; // one decimal precision
+      // return without unnecessary trailing .0 (i.e., "up to one decimal")
+      return Number.isInteger(rounded)
+        ? rounded.toString()
+        : rounded.toString();
+    }
+
+    // input is Celsius -> convert to Fahrenheit, no decimal places
+    var f = Math.round(num * (9 / 5) + 32);
+    return f.toString();
   },
 
   convertDistance: function (val, toImperial) {
