@@ -410,8 +410,6 @@ Module.register("MMM-NOAAForecast", {
           this.weatherData.grid[gridKey].values
         );
 
-    // TODO(MEM): Fix decimal points
-
     if (
       this.weatherData.grid[gridKey].uom === "wmoUnit:degC" &&
       this.config.units === "imperial"
@@ -677,7 +675,6 @@ Module.register("MMM-NOAAForecast", {
     //just display projected temperature for that hour
     fItem.temperature = `${Math.round(fData.temperature)}°`;
 
-    // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
     // --------- Precipitation ---------
     fItem.precipitation = this.formatPrecipitation(
       fData.probabilityOfPrecipitation.value,
@@ -716,7 +713,6 @@ Module.register("MMM-NOAAForecast", {
       fData.minTemperature
     );
 
-    // TODO(MEM): what about fData.probabilityOfPrecipitation unit?
     // --------- Precipitation ---------
     fItem.precipitation = this.formatPrecipitation(
       fData.probabilityOfPrecipitation.value,
