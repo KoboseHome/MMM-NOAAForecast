@@ -365,6 +365,7 @@ Module.register("MMM-NOAAForecast", {
       false
     );
 
+    // TODO(MEM): Remove this fallback. Do 24h special matching instead.
     if (typeof val === "undefined" || val === null) {
       val = this.findValueForTimestamp(
         startTime,
@@ -372,6 +373,8 @@ Module.register("MMM-NOAAForecast", {
         true
       );
     }
+
+    // TODO(MEM): Fix decimal points
 
     if (
       this.weatherData.grid[gridKey].uom === "wmoUnit:degC" &&
@@ -398,6 +401,37 @@ Module.register("MMM-NOAAForecast", {
     return val;
   },
 
+  calculateFeelsLike: function (tempF, windMph, humidityPercent) {
+    let feelsLike = tempF;
+
+    // Wind Chill applies when temp ≤ 50°F and wind ≥ 3 mph
+    if (tempF <= 50 && windMph >= 3) {
+      feelsLike =
+        35.74 +
+        0.6215 * tempF -
+        35.75 * Math.pow(windMph, 0.16) +
+        0.4275 * tempF * Math.pow(windMph, 0.16);
+    }
+
+    // Heat Index applies when temp ≥ 80°F and humidity ≥ 40%
+    else if (tempF >= 80 && humidityPercent >= 40) {
+      const T = tempF;
+      const R = humidityPercent;
+      feelsLike =
+        -42.379 +
+        2.04901523 * T +
+        10.14333127 * R -
+        0.22475541 * T * R -
+        0.00683783 * T * T -
+        0.05481717 * R * R +
+        0.00122874 * T * T * R +
+        0.00085282 * T * R * R -
+        0.00000199 * T * T * R * R;
+    }
+
+    return Math.round(feelsLike * 10) / 10; // Rounded to 1 decimal place
+  },
+
   /*
     We need to pre-process the dailies and hourly to augment the data there based on grid data.
     */
@@ -421,6 +455,12 @@ Module.register("MMM-NOAAForecast", {
           "iceAccumulation"
         );
 
+        daily.feelsLike = this.calculateFeelsLike(
+          daily.temperature,
+          0, // TODO(MEM): windMph
+          50 // humidityPercent
+        );
+
         // TODO(MEM): Implement windGust
       }
 
@@ -430,6 +470,12 @@ Module.register("MMM-NOAAForecast", {
         hourly.snowAccumulation = this.getGridValue(
           this.weatherData.hourly[j].startTime,
           "snowAccumulation"
+        );
+
+        hourly.feelsLike = this.calculateFeelsLike(
+          daily.temperature,
+          0, // TODO(MEM): windMph
+          50 // humidityPercent
         );
 
         // TODO(MEM): Implement windGust
@@ -492,31 +538,31 @@ Module.register("MMM-NOAAForecast", {
 
     return {
       currently: {
-        temperature: `${Math.round(this.weatherData.current.temp)}°`,
-        feelslike: `${Math.round(this.weatherData.current.feels_like)}°`,
+        temperature: `${Math.round(this.weatherData.hourly[0].temperature)}°`,
+        feelslike: `${Math.round(this.weatherData.hourly[0].feelsLike)}°`,
         animatedIconId: this.config.useAnimatedIcons
           ? this.getAnimatedIconId()
           : null,
         animatedIconName: this.convertNOAAtoIcon(
-          this.weatherData.current.weather[0].icon
+          this.weatherData.hourly[0].icon
         ),
         iconPath: this.generateIconSrc(
-          this.convertNOAAtoIcon(this.weatherData.current.weather[0].icon),
+          this.convertNOAAtoIcon(this.weatherData.hourly[0].icon),
           true
         ),
         tempRange: this.formatHiLowTemperature(
-          this.weatherData.daily[0].temp.max,
-          this.weatherData.daily[0].temp.min
+          this.weatherData.daily[0].maxTemperature,
+          this.weatherData.daily[0].minTemperature
         ),
         precipitation: this.formatPrecipitation(
           null,
-          this.weatherData.current.rain,
-          this.weatherData.current.snow
+          0, // TODO(MEM): this.weatherData.current.rain,
+          0 // TODO(MEM): this.weatherData.current.snow
         ),
         wind: this.formatWind(
-          this.weatherData.current.wind_speed,
-          this.weatherData.current.wind_deg,
-          this.weatherData.current.wind_gust
+          this.weatherData.hourly[0].windSpeed,
+          this.weatherData.hourly[0].windDirection,
+          "0" // TODO(MEM)
         )
       },
       summary: summary,
@@ -596,8 +642,8 @@ Module.register("MMM-NOAAForecast", {
 
     // --------- Wind ---------
     fItem.wind = this.formatWind(
-      fData.windDirection,
       fData.windSpeed,
+      fData.windDirection,
       "0" // TODO(MEM)
     );
 
