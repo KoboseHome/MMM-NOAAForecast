@@ -257,7 +257,7 @@ Module.register("MMM-NOAAForecast", {
 
   // Iterates array of objects with { validTime: "...", value: ... }
   // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
-  findValueForTimestamp: function (targetTimestamp, arr, considerIntervals24h) {
+  findValueForTimestamp: function (targetTimestamp, arr, snapTo24h) {
     if (!targetTimestamp || !Array.isArray(arr)) return undefined;
     var target = new Date(targetTimestamp);
     if (isNaN(target.getTime())) return undefined;
@@ -276,9 +276,7 @@ Module.register("MMM-NOAAForecast", {
         ) {
           var startMoment = moment(parts[0]);
           if (startMoment.isValid()) {
-            var dur = moment.duration(
-              considerIntervals24h ? "PT24H" : parts[1]
-            );
+            var dur = moment.duration(snapTo24h ? "PT24H" : parts[1]);
             if (dur && dur.asMilliseconds() > 0) {
               var endMoment = startMoment.clone().add(dur);
               if (
@@ -350,7 +348,7 @@ Module.register("MMM-NOAAForecast", {
   // Generic helper to get a grid value for a daily entry (with 24h fallback).
   // This is awful - NOAA will provide gaps in their grid data,
   // so if we can't find the time slot, consider it a 24h and run with it. Lame.
-  getGridValue: function (startTime, gridKey) {
+  getGridValue: function (startTime, gridKey, snapToDaily) {
     if (
       !this.weatherData ||
       !this.weatherData.grid ||
@@ -363,17 +361,8 @@ Module.register("MMM-NOAAForecast", {
     var val = this.findValueForTimestamp(
       startTime,
       this.weatherData.grid[gridKey].values,
-      false
+      snapToDaily
     );
-
-    // TODO(MEM): Remove this fallback. Do 24h special matching instead.
-    if (typeof val === "undefined" || val === null) {
-      val = this.findValueForTimestamp(
-        startTime,
-        this.weatherData.grid[gridKey].values,
-        true
-      );
-    }
 
     // TODO(MEM): Fix decimal points
 
@@ -475,31 +464,33 @@ Module.register("MMM-NOAAForecast", {
         var daily = this.weatherData.daily[i];
         daily.maxTemperature = this.getGridValue(
           this.weatherData.daily[i].startTime,
-          "maxTemperature"
+          "maxTemperature",
+          true
         );
 
         daily.minTemperature = this.getGridValue(
           this.weatherData.daily[i].startTime,
-          "minTemperature"
+          "minTemperature",
+          true
         );
 
         daily.snowAccumulation = this.getGridValue(
           this.weatherData.daily[i].startTime,
-          "iceAccumulation"
+          "iceAccumulation",
+          true
         );
 
         daily.windGust = this.getGridValue(
           this.weatherData.daily[i].startTime,
-          "windGust"
+          "windGust",
+          true
         );
 
         daily.feelsLike = this.calculateFeelsLike(
           daily.temperature,
           daily.windGust,
-          50 // humidityPercent
+          50 // TODO(MEM): humidityPercent
         );
-
-        // TODO(MEM): Implement windGust
       }
 
       // For hourly, we need to augment rain, snow accumulation and gust data.
@@ -507,21 +498,21 @@ Module.register("MMM-NOAAForecast", {
         var hourly = this.weatherData.hourly[j];
         hourly.snowAccumulation = this.getGridValue(
           this.weatherData.hourly[j].startTime,
-          "snowAccumulation"
+          "snowAccumulation",
+          false
         );
 
         hourly.windGust = this.getGridValue(
           this.weatherData.hourly[i].startTime,
-          "windGust"
+          "windGust",
+          false
         );
 
         hourly.feelsLike = this.calculateFeelsLike(
           hourly.temperature,
           hourly.windGust,
-          50 // humidityPercent
+          50 // TODO(MEM): humidityPercent
         );
-
-        // TODO(MEM): Implement windGust
       }
     }
   },
