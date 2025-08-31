@@ -139,8 +139,8 @@ Find out your latitude and longitude here:
       <td>Can be set to <code>tiled</code> or <code>table</code>. How to display hourly and forecast information.  See below for screenshot examples of each.<br><br><strong>Type</strong> <code>String</code><br>Defaults to <code>tiled</code></td>
     </tr>
     <tr>
-      <td><code>label_maximum</code></td>
-      <td>The label you wish to display for prefixing wind gusts.<br><br><strong>Type</strong> <code>String</code><br>Defaults to <code>"max"</code>.</td>
+      <td><code>label_gust/code></td>
+      <td>The label you wish to display for prefixing wind gusts.<br><br><strong>Type</strong> <code>String</code><br>Defaults to <code>"gust"</code>.</td>
     </tr>
     <tr>
       <td><code>label_high</code></td>

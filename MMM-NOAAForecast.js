@@ -41,7 +41,7 @@ Module.register("MMM-NOAAForecast", {
     forecastTiledIconSize: 70,
     forecastTableIconSize: 30,
     updateFadeSpeed: 500,
-    label_maximum: "max",
+    label_gust: "gust",
     label_high: "H",
     label_low: "L",
     label_timeFormat: "h a",
@@ -312,38 +312,39 @@ Module.register("MMM-NOAAForecast", {
     return Math.round(celsius * (9 / 5) + 32);
   },
 
-  convertMetricToImperial: function (val) {
+  convertDistance: function (val, toImperial) {
     if (val === null || typeof val === "undefined") {
       return val;
     }
 
-    var mm = parseFloat(String(val));
-    if (isNaN(mm)) {
-      return val;
+    var actual = parseFloat(String(val));
+    if (isNaN(actual)) {
+      return actual;
     }
 
     // 1 inch = 25.4 mm
-    var inches = mm / 25.4;
+    var final = toImperial ? actual / 25.4 : actual * 25.4;
 
     // Round to two decimal places and return as string
-    return (Math.round(inches * 100) / 100).toString();
+    return (Math.round(final * 100) / 100).toString();
   },
 
-  convertImperialToMetric: function (val) {
+  convertSpeed: function (val, toImperial) {
     if (val === null || typeof val === "undefined") {
       return val;
     }
 
-    var inches = parseFloat(String(val));
-    if (isNaN(inches)) {
-      return val;
+    var actual = parseFloat(String(val));
+    if (isNaN(actual)) {
+      return actual;
     }
 
-    // 1 inch = 25.4 mm
-    var mm = inches * 25.4;
+    // toImperial === true: input is km/h -> convert to mph
+    // toImperial === false: input is mph -> convert to km/h
+    var final = toImperial ? actual / 1.609344 : actual * 1.609344;
 
-    // Round to two decimal places and return as string
-    return (Math.round(mm * 100) / 100).toString();
+    // 0 decimals precision, return as string for consistent concatenation elsewhere
+    return Math.round(final).toString();
   },
 
   // Generic helper to get a grid value for a daily entry (with 24h fallback).
@@ -390,34 +391,63 @@ Module.register("MMM-NOAAForecast", {
       this.weatherData.grid[gridKey].uom === "wmoUnit:in" &&
       this.config.units === "metric"
     ) {
-      val = this.convertImperialToMetric(val);
+      val = this.convertDistance(val, false);
     } else if (
       this.weatherData.grid[gridKey].uom === "wmoUnit:mm" &&
       this.config.units === "imperial"
     ) {
-      val = this.convertMetricToImperial(val);
+      val = this.convertDistance(val, true);
+    } else if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:km_h-1" &&
+      this.config.units === "imperial"
+    ) {
+      val = this.convertSpeed(val, true);
+    } else if (
+      this.weatherData.grid[gridKey].uom === "wmoUnit:km_h-1" &&
+      this.config.units === "metric"
+    ) {
+      val = this.convertSpeed(val, false);
     }
 
     return val;
   },
 
-  calculateFeelsLike: function (tempF, windMph, humidityPercent) {
-    let feelsLike = tempF;
+  calculateFeelsLike: function (temp, wind, humidityPercent) {
+    // temp: number (F if units !== 'metric', C if units === 'metric')
+    // wind: number (mph if units !== 'metric', km/h if units === 'metric')
+    // humidityPercent: number (0-100)
+    var t = parseFloat(String(temp));
+    var v = parseFloat(String(wind));
+    var h =
+      typeof humidityPercent === "number"
+        ? humidityPercent
+        : parseFloat(String(humidityPercent));
+
+    if (isNaN(t)) return temp;
+    if (isNaN(v)) v = 0;
+    if (isNaN(h)) h = 50;
+
+    var isMetric = this.config && this.config.units === "metric";
+
+    // Convert metric inputs to Fahrenheit and mph for formula calculation
+    var tempF = isMetric ? t * (9 / 5) + 32 : t;
+    var windMph = isMetric ? v / 1.609344 : v;
+
+    var feelsF = tempF;
 
     // Wind Chill applies when temp ≤ 50°F and wind ≥ 3 mph
     if (tempF <= 50 && windMph >= 3) {
-      feelsLike =
+      feelsF =
         35.74 +
         0.6215 * tempF -
         35.75 * Math.pow(windMph, 0.16) +
         0.4275 * tempF * Math.pow(windMph, 0.16);
     }
-
     // Heat Index applies when temp ≥ 80°F and humidity ≥ 40%
-    else if (tempF >= 80 && humidityPercent >= 40) {
-      const T = tempF;
-      const R = humidityPercent;
-      feelsLike =
+    else if (tempF >= 80 && h >= 40) {
+      var T = tempF;
+      var R = h;
+      feelsF =
         -42.379 +
         2.04901523 * T +
         10.14333127 * R -
@@ -429,7 +459,10 @@ Module.register("MMM-NOAAForecast", {
         0.00000199 * T * T * R * R;
     }
 
-    return Math.round(feelsLike * 10) / 10; // Rounded to 1 decimal place
+    // Convert back to metric if needed
+    var feels = isMetric ? (feelsF - 32) * (5 / 9) : feelsF;
+
+    return Math.round(feels * 10) / 10; // one decimal place
   },
 
   /*
@@ -455,9 +488,14 @@ Module.register("MMM-NOAAForecast", {
           "iceAccumulation"
         );
 
+        daily.windGust = this.getGridValue(
+          this.weatherData.daily[i].startTime,
+          "windGust"
+        );
+
         daily.feelsLike = this.calculateFeelsLike(
           daily.temperature,
-          0, // TODO(MEM): windMph
+          daily.windGust,
           50 // humidityPercent
         );
 
@@ -472,9 +510,14 @@ Module.register("MMM-NOAAForecast", {
           "snowAccumulation"
         );
 
+        hourly.windGust = this.getGridValue(
+          this.weatherData.hourly[i].startTime,
+          "windGust"
+        );
+
         hourly.feelsLike = this.calculateFeelsLike(
-          daily.temperature,
-          0, // TODO(MEM): windMph
+          hourly.temperature,
+          hourly.windGust,
           50 // humidityPercent
         );
 
@@ -562,7 +605,7 @@ Module.register("MMM-NOAAForecast", {
         wind: this.formatWind(
           this.weatherData.hourly[0].windSpeed,
           this.weatherData.hourly[0].windDirection,
-          "0" // TODO(MEM)
+          this.weatherData.hourly[0].windGust
         )
       },
       summary: summary,
@@ -603,7 +646,7 @@ Module.register("MMM-NOAAForecast", {
     fItem.wind = this.formatWind(
       fData.windSpeed,
       fData.windDirection,
-      "0" // TODO(MEM));
+      fData.windGust
     );
 
     return fItem;
@@ -644,7 +687,7 @@ Module.register("MMM-NOAAForecast", {
     fItem.wind = this.formatWind(
       fData.windSpeed,
       fData.windDirection,
-      "0" // TODO(MEM)
+      fData.windGust
     );
 
     return fItem;
@@ -727,7 +770,7 @@ Module.register("MMM-NOAAForecast", {
     //wind gust
     var windGust = null;
     if (!this.config.concise && gust) {
-      windGust = ` (${this.config.label_maximum} ${gust})`;
+      windGust = ` (${this.config.label_gust} ${gust})`;
     }
 
     return {
