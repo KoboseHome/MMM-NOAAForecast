@@ -194,7 +194,7 @@
     align-items: center;
     gap: 1px; /* space between icon and text */
     white-space: nowrap; /* prevent wrapping to multiple lines */
-    padding-right: 5px;
+    padding-right: 10px;
 }
 
 /* ------------ Table Layout ------------ */

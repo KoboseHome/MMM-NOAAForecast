@@ -594,7 +594,7 @@ Module.register("MMM-NOAAForecast", {
         i = 0;
         maxi = this.config.maxDailiesToShow - 1;
       }
-      for (i; i <= maxi; i++) {
+      for (i; i <= maxi * 2; i += 2) {
         if (this.weatherData.daily[i] === null) {
           break;
         }
