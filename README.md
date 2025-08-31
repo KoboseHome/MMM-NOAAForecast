@@ -6,7 +6,9 @@ https://github.com/MichMich/MagicMirror
 
 ![Screenshot](/screenshots/MMM-NOAAForecast.png?raw=true "Screenshot")
 
-A weather module that displays current, hourly and daily forecast information using data from NOAA, not requiring API keys nor any fees.
+A weather module that displays current, hourly and daily forecast information using data from NOAA, not requiring API keys nor any fees. Of course, this means that this module is only useful for locations in the United States and its territories.
+
+IMPORTANT: Although it supports metric units, the textual data from NOAA is in imperial units, so ultimately the output will be mixed (but with units clearly denoted).
 
 This module incorporates code and inspiration from [MMM-OpenWeatherForecast](https://github.com/Tom-Hirschberger/MMM-OpenWeatherForecast) by Tom Hirschberger, licensed under the MIT License.
 
