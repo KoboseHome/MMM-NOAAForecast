@@ -389,6 +389,30 @@ Module.register("MMM-NOAAForecast", {
     return Math.round(final).toString();
   },
 
+  convertIfNeeded: function (val, unit) {
+    if (
+      (unit === "wmoUnit:degC" || unit === "C") &&
+      this.config.units === "imperial"
+    ) {
+      val = this.convertTemperature(val, false);
+    } else if (
+      (unit === "wmoUnit:degF" || unit === "F") &&
+      this.config.units === "metric"
+    ) {
+      val = this.convertTemperature(val, true);
+    } else if (unit === "wmoUnit:in" && this.config.units === "metric") {
+      val = this.convertDistance(val, false);
+    } else if (unit === "wmoUnit:mm" && this.config.units === "imperial") {
+      val = this.convertDistance(val, true);
+    } else if (unit === "wmoUnit:km_h-1" && this.config.units === "imperial") {
+      val = this.convertSpeed(val, true);
+    } else if (unit === "wmoUnit:km_h-1" && this.config.units === "metric") {
+      val = this.convertSpeed(val, false);
+    }
+
+    return val;
+  },
+
   // Generic helper to get a grid value for a daily entry, with possible accumulation for 24h.
   getGridValue: function (startTime, gridKey, dailyAccumulation) {
     if (
@@ -410,39 +434,7 @@ Module.register("MMM-NOAAForecast", {
           this.weatherData.grid[gridKey].values
         );
 
-    if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:degC" &&
-      this.config.units === "imperial"
-    ) {
-      val = this.convertTemperature(val, false);
-    } else if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:degF" &&
-      this.config.units === "metric"
-    ) {
-      val = this.convertTemperature(val, true);
-    } else if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:in" &&
-      this.config.units === "metric"
-    ) {
-      val = this.convertDistance(val, false);
-    } else if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:mm" &&
-      this.config.units === "imperial"
-    ) {
-      val = this.convertDistance(val, true);
-    } else if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:km_h-1" &&
-      this.config.units === "imperial"
-    ) {
-      val = this.convertSpeed(val, true);
-    } else if (
-      this.weatherData.grid[gridKey].uom === "wmoUnit:km_h-1" &&
-      this.config.units === "metric"
-    ) {
-      val = this.convertSpeed(val, false);
-    }
-
-    return val;
+    return this.convertIfNeeded(val, this.weatherData.grid[gridKey].uom);
   },
 
   calculateFeelsLike: function (temp, wind, humidityPercent) {
@@ -506,6 +498,12 @@ Module.register("MMM-NOAAForecast", {
       // For daily, we need to augment min, max temperatures, rain, snow accumulation and gust data.
       for (var i = 0; i < this.weatherData.daily.length; i++) {
         var daily = this.weatherData.daily[i];
+
+        daily.temperature = this.convertIfNeeded(
+          daily.temperature,
+          daily.temperatureUnit
+        );
+
         daily.maxTemperature = this.getGridValue(
           this.weatherData.daily[i].startTime,
           "maxTemperature",
@@ -538,6 +536,12 @@ Module.register("MMM-NOAAForecast", {
       // For hourly, we need to augment rain, snow accumulation and gust data.
       for (var j = 0; j < this.weatherData.hourly.length; j++) {
         var hourly = this.weatherData.hourly[j];
+
+        hourly.temperature = this.convertIfNeeded(
+          hourly.temperature,
+          hourly.temperatureUnit
+        );
+
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
         // this may come out undefined even though it does provide a % chance of rain.
         hourly.snowAccumulation = this.getGridValue(
