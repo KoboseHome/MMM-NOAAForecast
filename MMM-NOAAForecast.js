@@ -11,6 +11,7 @@ Module.register("MMM-NOAAForecast", {
   defaults: {
     latitude: "",
     longitude: "",
+    units: config.units,
     updateInterval: 10, // minutes
     requestDelay: 0,
     showCurrentConditions: true,
