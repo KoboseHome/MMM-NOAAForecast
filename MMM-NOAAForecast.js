@@ -643,31 +643,39 @@ Module.register("MMM-NOAAForecast", {
     var dailies = [];
     if (this.config.showDailyForecast) {
 
-      var firstDailyName = "";
+      // Find the index of the first daily forecast whose startTime is tomorrow
+      var tomorrow = moment().add(1, "day").startOf("day");
+      var firstTomorrowIndex = -1;
       if (
         this.weatherData &&
-        Array.isArray(this.weatherData.daily) &&
-        this.weatherData.daily[0]
+        Array.isArray(this.weatherData.daily)
       ) {
-        firstDailyName = String(this.weatherData.daily[0].name || "").trim();
-      }
-      var isFirstDailyToday =
-        firstDailyName.toLowerCase() === "today" ? true : false;
-
-      var i = isFirstDailyToday ? 2 : 1;
-      if (this.config.includeTodayInDailyForecast) {
-        i = isFirstDailyToday ? 0 : 1;
+        for (var t = 0; t < this.weatherData.daily.length; t++) {
+          var dailyStart = moment(this.weatherData.daily[t].startTime);
+          if (dailyStart.isSame(tomorrow, "day")) {
+            firstTomorrowIndex = t;
+            break;
+          }
+        }
       }
 
-      for (
-        i;
-        i <= 2 * this.config.maxDailiesToShow &&
-        i < this.weatherData.daily.length;
-        i += 2
-      ) {
+      var i = this.config.includeTodayInDailyForecast ? 0 : firstTomorrowIndex;
+
+      var previousEntryDate = undefined;
+
+      for (i; i < this.weatherData.daily.length; i++)
+      {
         if (this.weatherData.daily[i] === null) {
           break;
         }
+
+        var entryDate = moment(this.weatherData.daily[i].startTime);
+
+        if (previousEntryDate && previousEntryDate.isSame(entryDate, "day")) {
+          continue;
+        }
+
+        previousEntryDate = entryDate;
 
         dailies.push(
           this.forecastDailyFactory(this.weatherData.daily[i], "daily")
