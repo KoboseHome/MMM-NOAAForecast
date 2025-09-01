@@ -279,9 +279,7 @@ Module.register("MMM-NOAAForecast", {
     return foundAny ? accumulation : undefined;
   },
 
-  // Iterates array of objects with { validTime: "...", value: ... }
-  // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
-  findValueForTimestamp: function (targetTimestamp, arr, snapTo24h) {
+  findValueForTimestamp: function (targetTimestamp, arr) {
     if (!targetTimestamp || !Array.isArray(arr)) return undefined;
     var target = new Date(targetTimestamp);
     if (isNaN(target.getTime())) return undefined;
@@ -302,7 +300,8 @@ Module.register("MMM-NOAAForecast", {
         ) {
           var startMoment = moment.parseZone(parts[0]);
           if (startMoment.isValid()) {
-            var dur = moment.duration(snapTo24h ? "PT24H" : parts[1]);
+            var dur = moment.duration(parts[1]);
+
             if (dur && dur.asMilliseconds() > 0) {
               var endMoment = startMoment.clone().add(dur);
               if (
@@ -314,6 +313,48 @@ Module.register("MMM-NOAAForecast", {
                 // not in this entry's duration, continue to next entry
                 continue;
               }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore parse errors and fall back to existing handling below
+      }
+    }
+    return undefined;
+  },
+
+  findValueForTimestampMatchingDay: function (targetTimestamp, arr) {
+    if (!targetTimestamp || !Array.isArray(arr)) return undefined;
+    var target = new Date(targetTimestamp);
+    if (isNaN(target.getTime())) return undefined;
+
+    var result = undefined;
+
+    for (var i = 0; i < arr.length; i++) {
+      var entry = arr[i];
+      if (!entry || !entry.validTime) continue;
+
+      try {
+        // Handle interval where the end is an ISO duration, e.g. "2025-08-29T10:00:00-04:00/PT3H"
+        var parts = entry.validTime.split("/");
+        if (
+          parts.length === 2 &&
+          parts[1] &&
+          parts[1].charAt(0).toUpperCase() === "P"
+        ) {
+          var startMoment = moment.parseZone(parts[0]);
+          if (startMoment.isValid()) {
+            var targetMoment = moment.parseZone(target);
+            if (!targetMoment.isValid()) {
+              continue;
+            }
+            // Treat the interval as a calendar day: check if the target falls within the same day as the startMoment
+            var dayStart = startMoment.clone().startOf("day");
+            var dayEnd = dayStart.clone().add(1, "day");
+            if (targetMoment.isSameOrAfter(dayStart) && targetMoment.isBefore(dayEnd)) {
+              return entry.value;
+            } else {
+              continue;
             }
           }
         }
@@ -406,7 +447,25 @@ Module.register("MMM-NOAAForecast", {
     return val;
   },
 
-  getGridValue: function (startTime, gridKey, snapTo24h) {
+  getGridValueMatchingDay: function (startTime, gridKey) {
+    if (
+      !this.weatherData ||
+      !this.weatherData.grid ||
+      !this.weatherData.grid[gridKey] ||
+      !Array.isArray(this.weatherData.grid[gridKey].values)
+    ) {
+      return undefined;
+    }
+
+    var val = this.findValueForTimestampMatchingDay(
+        startTime,
+        this.weatherData.grid[gridKey].values
+    );
+
+    return this.convertIfNeeded(val, this.weatherData.grid[gridKey].uom);
+  },
+
+  getGridValueWithinDuration: function (startTime, gridKey) {
     if (
       !this.weatherData ||
       !this.weatherData.grid ||
@@ -418,8 +477,7 @@ Module.register("MMM-NOAAForecast", {
 
     var val = this.findValueForTimestamp(
         startTime,
-        this.weatherData.grid[gridKey].values,
-        snapTo24h
+        this.weatherData.grid[gridKey].values
     );
 
     return this.convertIfNeeded(val, this.weatherData.grid[gridKey].uom);
@@ -510,16 +568,14 @@ Module.register("MMM-NOAAForecast", {
           daily.temperatureUnit
         );
 
-        daily.maxTemperature = this.getGridValue(
+        daily.maxTemperature = this.getGridValueMatchingDay(
           this.weatherData.daily[i].startTime,
-          "maxTemperature",
-          true
+          "maxTemperature"
         );
 
-        daily.minTemperature = this.getGridValue(
+        daily.minTemperature = this.getGridValueMatchingDay(
           this.weatherData.daily[i].startTime,
-          "minTemperature",
-          true
+          "minTemperature"
         );
 
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
@@ -577,24 +633,21 @@ Module.register("MMM-NOAAForecast", {
 
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
         // this may come out undefined even though it does provide a % chance of rain.
-        hourly.snowAccumulation = this.getGridValue(
+        hourly.snowAccumulation = this.getGridValueWithinDuration(
           this.weatherData.hourly[j].startTime,
-          "iceAccumulation",
-          false
+          "iceAccumulation"
         );
 
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
         // this may come out undefined even though it does provide a % chance of rain.
-        hourly.rainAccumulation = this.getGridValue(
+        hourly.rainAccumulation = this.getGridValueWithinDuration(
           this.weatherData.hourly[j].startTime,
-          "quantitativePrecipitation",
-          false
+          "quantitativePrecipitation"
         );
 
-        hourly.windGust = this.getGridValue(
+        hourly.windGust = this.getGridValueWithinDuration(
           this.weatherData.hourly[i].startTime,
-          "windGust",
-          false
+          "windGust"
         );
 
         hourly.feelsLike = this.calculateFeelsLike(
