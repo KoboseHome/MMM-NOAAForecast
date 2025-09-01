@@ -716,9 +716,14 @@ Module.register("MMM-NOAAForecast", {
 
       var previousEntryDate = undefined;
 
+      var dailiesShows = 0;
       for (i; i < this.weatherData.daily.length; i++)
       {
         if (this.weatherData.daily[i] === null) {
+          break;
+        }
+
+        if (dailiesShows >= this.config.maxDailiesToShow) {
           break;
         }
 
@@ -733,6 +738,9 @@ Module.register("MMM-NOAAForecast", {
         dailies.push(
           this.forecastDailyFactory(this.weatherData.daily[i], "daily")
         );
+
+        dailiesShows++;
+
       }
     }
 
