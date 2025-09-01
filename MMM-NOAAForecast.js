@@ -250,7 +250,7 @@ Module.register("MMM-NOAAForecast", {
 
   accumulateValueForTimestamp: function (targetTimestamp, arr) {
     if (!targetTimestamp || !Array.isArray(arr)) return undefined;
-    var target = moment(targetTimestamp);
+    var target = moment.parseZone(targetTimestamp);
     if (!target.isValid()) return undefined;
 
     // accumulate values for entries whose start date equals the target date
@@ -263,7 +263,7 @@ Module.register("MMM-NOAAForecast", {
       if (!entry || !entry.validTime) continue;
 
       var parts = entry.validTime.split("/");
-      var startMoment = moment(parts[0]);
+      var startMoment = moment.parseZone(parts[0]);
       if (!startMoment.isValid()) continue;
 
       // treat each matching start date as part of that day's 24h accumulation
@@ -300,14 +300,14 @@ Module.register("MMM-NOAAForecast", {
           parts[1] &&
           parts[1].charAt(0).toUpperCase() === "P"
         ) {
-          var startMoment = moment(parts[0]);
+          var startMoment = moment.parseZone(parts[0]);
           if (startMoment.isValid()) {
             var dur = moment.duration(snapTo24h ? "PT24H" : parts[1]);
             if (dur && dur.asMilliseconds() > 0) {
               var endMoment = startMoment.clone().add(dur);
               if (
-                moment(target).isSameOrAfter(startMoment) &&
-                moment(target).isBefore(endMoment)
+                moment.parseZone(target).isSameOrAfter(startMoment) &&
+                moment.parseZone(target).isBefore(endMoment)
               ) {
                 return entry.value;
               } else {
@@ -545,7 +545,7 @@ Module.register("MMM-NOAAForecast", {
       for (var k = 0; k < this.weatherData.hourly.length; k++) {
         var entry = this.weatherData.hourly[k];
         if (!entry || !entry.startTime) continue;
-        var startMoment = moment(entry.startTime);
+        var startMoment = moment.parseZone(entry.startTime);
         if (!startMoment.isValid()) continue;
 
         // Prefer an entry that exactly matches the current hour; otherwise take the first entry after the hour start
@@ -651,7 +651,7 @@ Module.register("MMM-NOAAForecast", {
         Array.isArray(this.weatherData.daily)
       ) {
         for (var t = 0; t < this.weatherData.daily.length; t++) {
-          var dailyStart = moment(this.weatherData.daily[t].startTime);
+          var dailyStart = moment.parseZone(this.weatherData.daily[t].startTime);
           if (dailyStart.isSame(tomorrow, "day")) {
             firstTomorrowIndex = t;
             break;
@@ -669,7 +669,7 @@ Module.register("MMM-NOAAForecast", {
           break;
         }
 
-        var entryDate = moment(this.weatherData.daily[i].startTime);
+        var entryDate = moment.parseZone(this.weatherData.daily[i].startTime);
 
         if (previousEntryDate && previousEntryDate.isSame(entryDate, "day")) {
           continue;
@@ -723,7 +723,7 @@ Module.register("MMM-NOAAForecast", {
 
     // --------- Date / Time Display ---------
     //time (e.g.: "5 PM")
-    fItem.time = moment(fData.startTime).format(this.config.label_timeFormat);
+    fItem.time = moment.parseZone(fData.startTime).format(this.config.label_timeFormat);
 
     // --------- Icon ---------
     if (this.config.useAnimatedIcons && !this.config.animateMainIconOnly) {
@@ -758,7 +758,7 @@ Module.register("MMM-NOAAForecast", {
 
     // --------- Date / Time Display ---------
     //day name (e.g.: "MON")
-    fItem.day = this.config.label_days[moment(fData.startTime).format("d")];
+    fItem.day = this.config.label_days[moment.parseZone(fData.startTime).format("d")];
 
     // --------- Icon ---------
     if (this.config.useAnimatedIcons && !this.config.animateMainIconOnly) {
