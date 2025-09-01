@@ -281,7 +281,7 @@ Module.register("MMM-NOAAForecast", {
 
   // Iterates array of objects with { validTime: "...", value: ... }
   // targetTimestamp can be any ISO timestamp string ("2025-08-29T22:00:00-04:00")
-  findValueForTimestamp: function (targetTimestamp, arr) {
+  findValueForTimestamp: function (targetTimestamp, arr, snapTo24h) {
     if (!targetTimestamp || !Array.isArray(arr)) return undefined;
     var target = new Date(targetTimestamp);
     if (isNaN(target.getTime())) return undefined;
@@ -302,7 +302,7 @@ Module.register("MMM-NOAAForecast", {
         ) {
           var startMoment = moment(parts[0]);
           if (startMoment.isValid()) {
-            var dur = moment.duration(parts[1]);
+            var dur = moment.duration(snapTo24h ? "PT24H" : parts[1]);
             if (dur && dur.asMilliseconds() > 0) {
               var endMoment = startMoment.clone().add(dur);
               if (
@@ -406,8 +406,7 @@ Module.register("MMM-NOAAForecast", {
     return val;
   },
 
-  // Generic helper to get a grid value for a daily entry, with possible accumulation for 24h.
-  getGridValue: function (startTime, gridKey, dailyAccumulation) {
+  getGridValue: function (startTime, gridKey, snapTo24h) {
     if (
       !this.weatherData ||
       !this.weatherData.grid ||
@@ -417,15 +416,29 @@ Module.register("MMM-NOAAForecast", {
       return undefined;
     }
 
-    var val = dailyAccumulation
-      ? this.accumulateValueForTimestamp(
-          startTime,
-          this.weatherData.grid[gridKey].values
-        )
-      : this.findValueForTimestamp(
-          startTime,
-          this.weatherData.grid[gridKey].values
-        );
+    var val = this.findValueForTimestamp(
+        startTime,
+        this.weatherData.grid[gridKey].values,
+        snapTo24h
+    );
+
+    return this.convertIfNeeded(val, this.weatherData.grid[gridKey].uom);
+  },
+
+  accumulateGridValue: function (startTime, gridKey) {
+    if (
+      !this.weatherData ||
+      !this.weatherData.grid ||
+      !this.weatherData.grid[gridKey] ||
+      !Array.isArray(this.weatherData.grid[gridKey].values)
+    ) {
+      return undefined;
+    }
+
+    var val = this.accumulateValueForTimestamp(
+      startTime,
+      this.weatherData.grid[gridKey].values
+    );
 
     return this.convertIfNeeded(val, this.weatherData.grid[gridKey].uom);
   },
@@ -511,18 +524,16 @@ Module.register("MMM-NOAAForecast", {
 
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
         // this may come out undefined even though it does provide a % chance of rain.
-        daily.snowAccumulation = this.getGridValue(
+        daily.snowAccumulation = this.accumulateGridValue(
           this.weatherData.daily[i].startTime,
-          "iceAccumulation",
-          true
+          "iceAccumulation"
         );
 
         // IMPORTANT: Commonly NOAA will only have 2-3 days out of data here, so
         // this may come out undefined even though it does provide a % chance of rain.
-        daily.rainAccumulation = this.getGridValue(
+        daily.rainAccumulation = this.accumulateGridValue(
           this.weatherData.daily[i].startTime,
-          "quantitativePrecipitation",
-          true
+          "quantitativePrecipitation"
         );
       }
     }
