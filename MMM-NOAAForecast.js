@@ -884,10 +884,10 @@ Module.register("MMM-NOAAForecast", {
 
     if (snowAccumulation && parseFloat(snowAccumulation) > 0) {
       accumulationType = "snow";
-      accumulation = `${Math.round(snowAccumulation)} ${unit}`;
+      accumulation = `${snowAccumulation} ${unit}`;
     } else if (rainAccumulation && parseFloat(rainAccumulation) > 0) {
       accumulationType = "rain";
-      accumulation = `${Math.round(rainAccumulation)} ${unit}`;
+      accumulation = `${rainAccumulation} ${unit}`;
     }
 
     return {

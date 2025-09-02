@@ -193,8 +193,30 @@
     display: inline-flex;
     align-items: center;
     gap: 1px; /* space between icon and text */
-    white-space: nowrap; /* prevent wrapping to multiple lines */
-    padding-right: 10px;
+    max-width: 50px;
+    height: 32px;
+}
+
+/* Precip: keep icon + PoP inline, wrap accumulation to next line */
+.MMM-NOAAForecast .forecast-container .forecast-item .precipitation-container {
+  display: inline-flex;          /* unify behavior across layouts */
+  align-items: center;
+  flex-wrap: wrap;               /* allow moving accumulation below */
+  gap: 3px;
+}
+
+/* Table layout: let the cell grow vertically for two lines */
+.MMM-NOAAForecast .wrapper.table .forecast-container .forecast-item .precipitation-container {
+  height: auto;                  /* override earlier fixed height */
+  max-width: 80px;               /* optional: give room for 2 lines */
+}
+
+/* Target the second pop (the accumulation) only when present */
+.MMM-NOAAForecast .forecast-container .forecast-item .precipitation-container span.pop:nth-of-type(2) {
+  flex-basis: 100%;              /* force a new row in the flex container */
+  display: block;                /* also works outside flex (tiled) */
+  margin-top: 2px;
+  line-height: 1.1;
 }
 
 /* ------------ Table Layout ------------ */
