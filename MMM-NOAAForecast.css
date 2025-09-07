@@ -189,7 +189,7 @@
 
 /* Add spacing between precipitation and wind containers */
 .MMM-NOAAForecast .wrapper.table .forecast-container .forecast-item .precipitation-container {
-    padding-right: 5px; /* ensure separation in table layout */
+    padding-right: 3px; /* ensure separation in table layout */
     display: inline-flex;
     align-items: center;
     gap: 1px; /* space between icon and text */
