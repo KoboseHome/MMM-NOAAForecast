@@ -1069,13 +1069,13 @@ Module.register("MMM-NOAAForecast", {
           this.iconsets[this.config.mainIconset].format
         }`
       );
-      console.log("[MMM-NOAAForcast] main icon is " + this.config.mainIconset)
     }
     return this.file(
       `icons/${this.iconsets[this.config.iconset].path}/${icon}.${
         this.iconsets[this.config.iconset].format
       }`
     );
+  console.log("[MMM-NOAAForcast] main icon is " + this.config.mainIconset);
   },
 
   /*
