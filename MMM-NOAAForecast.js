@@ -207,9 +207,9 @@ Module.register("MMM-NOAAForecast", {
       //process weather data
       this.dataRefreshTimeStamp = moment().format("x");
       this.weatherData = {
-        daily: JSON.parse(payload.payload.forecast).properties.periods,
-        hourly: JSON.parse(payload.payload.forecastHourly).properties.periods,
-        grid: JSON.parse(payload.payload.forecastGridData).properties
+        daily: payload.payload.daily.properties.periods,
+        hourly: payload.payload.hourly.properties.periods,
+        grid: payload.payload.grid.properties
       };
 
       this.preProcessWeatherData();
