@@ -29,6 +29,7 @@ Module.register("MMM-NOAAForecast", {
     concise: true,
     showWind: true,
     showFeelsLike: true,
+    showPrecipitationStartStop: false,
     iconset: "1c",
     mainIconset: "1c",
     useAnimatedIcons: true,
@@ -660,6 +661,54 @@ Module.register("MMM-NOAAForecast", {
   },
 
   /*
+      Analyzes hourly forecast data to detect when precipitation (rain or snow) is expected to start or stop.
+      Returns an object with the hour and type of change, or null if no significant change is detected.
+    */
+  analyzePrecipitationChange: function () {
+    if (!this.config.showPrecipitationStartStop || !Array.isArray(this.weatherData.hourly) || this.weatherData.hourly.length < 2) {
+      return null;
+    }
+
+    var currentHour = this.weatherData.hourly[0];
+    var currentHasRain = currentHour.rainAccumulation && parseFloat(currentHour.rainAccumulation) > 0;
+    var currentHasSnow = currentHour.snowAccumulation && parseFloat(currentHour.snowAccumulation) > 0;
+    var currentHasPrecip = currentHasRain || currentHasSnow;
+
+    // Look through the next several hours to find when precipitation starts or stops
+    for (var i = 1; i < Math.min(this.weatherData.hourly.length, 24); i++) {
+      var futureHour = this.weatherData.hourly[i];
+      var futureHasRain = futureHour.rainAccumulation && parseFloat(futureHour.rainAccumulation) > 0;
+      var futureHasSnow = futureHour.snowAccumulation && parseFloat(futureHour.snowAccumulation) > 0;
+      var futureHasPrecip = futureHasRain || futureHasSnow;
+
+      // Check if precipitation status changes
+      if (!currentHasPrecip && futureHasPrecip) {
+        // Precipitation starts
+        var precipType = futureHasSnow ? "snow" : "rain";
+        var timeStr = moment.parseZone(futureHour.startTime).format(this.config.label_timeFormat);
+        return {
+          type: "start",
+          precipType: precipType,
+          time: timeStr,
+          message: precipType === "snow" ? `Snow expected at ${timeStr}` : `Rain expected at ${timeStr}`
+        };
+      } else if (currentHasPrecip && !futureHasPrecip) {
+        // Precipitation stops
+        var currentPrecipType = currentHasSnow ? "snow" : "rain";
+        var stopTimeStr = moment.parseZone(futureHour.startTime).format(this.config.label_timeFormat);
+        return {
+          type: "stop",
+          precipType: currentPrecipType,
+          time: stopTimeStr,
+          message: currentPrecipType === "snow" ? `Snow ending by ${stopTimeStr}` : `Rain ending by ${stopTimeStr}`
+        };
+      }
+    }
+
+    return null;
+  },
+
+  /*
       This prepares the data to be used by the Nunjucks template.  The template does not do any logic other
       if statements to determine if a certain section should be displayed, and a simple loop to go through
       the houly / daily forecast items.
@@ -744,6 +793,8 @@ Module.register("MMM-NOAAForecast", {
       }
     }
 
+    var precipitationChange = this.analyzePrecipitationChange();
+
     return {
       currently: {
         temperature: `${Math.round(this.weatherData.hourly[0].temperature)}°`,
@@ -774,6 +825,7 @@ Module.register("MMM-NOAAForecast", {
         )
       },
       summary: summary,
+      precipitationChange: precipitationChange,
       hourly: hourlies,
       daily: dailies
     };
