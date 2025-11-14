@@ -101,6 +101,10 @@ Find out your latitude and longitude here:
       <td>Whether to show precipitation information. This affects current conditions, hourly and daily forecasts<br><br><strong>Type</strong> <code>Boolean</code><br>Defaults to <code>true</code></td>
     </tr>
     <tr>
+      <td><code>showPrecipitationStartStop</code></td>
+      <td>Whether to show when precipitation (rain or snow) is expected to start or stop. When enabled, the module analyzes hourly forecast data and displays a notification below the summary such as "Rain expected at 3 PM" or "Snow ending by 6 PM" if a change is detected within the next 24 hours.<br><br><strong>Type</strong> <code>Boolean</code><br>Defaults to <code>false</code></td>
+    </tr>
+    <tr>
       <td><code>showWind</code></td>
       <td>Whether to show wind information. This affects current conditions, hourly and daily forecasts<br><br><strong>Type</strong> <code>Boolean</code><br>Defaults to <code>true</code></td>
     </tr>

@@ -74,6 +74,9 @@
     {% if config.showSummary %}
       <div class="summary-wrapper small">
         <div class="summary">{{ forecast.summary }}</div>
+        {% if config.showPrecipitationStartStop and forecast.precipitationChange %}
+          <div class="precipitation-change bright">{{ forecast.precipitationChange.message }}</div>
+        {% endif %}
       </div>
     {% endif %}
 
